@@ -926,7 +926,7 @@ const firebaseConfig = {
   messagingSenderId: "848608658556",
   appId: "1:848608658556:web:6e325ac8529711251a35f9"
 };
-firebase.initializeApp(firebaseConfig);
+if(!firebase.apps.length){ firebase.initializeApp(firebaseConfig); }
 const fbDB = firebase.database();
 const DB_REF = fbDB.ref('nhhs_data');
 

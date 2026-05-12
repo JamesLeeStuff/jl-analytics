@@ -1,0 +1,2873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NHHS Baseball — Pitching Intelligence</title>
+<!-- Firebase SDKs — must load before any JS runs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+// Initialize Firebase immediately so it is ready before any other script runs
+const _fbConfig = {
+  apiKey: "AIzaSyB-u-vkSUPaTJ1PjOrDTDsi4_ij5PZhYa8",
+  authDomain: "nhhs-baseball.firebaseapp.com",
+  databaseURL: "https://nhhs-baseball-default-rtdb.firebaseio.com",
+  projectId: "nhhs-baseball",
+  storageBucket: "nhhs-baseball.firebasestorage.app",
+  messagingSenderId: "848608658556",
+  appId: "1:848608658556:web:6e325ac8529711251a35f9"
+};
+if (!firebase.apps.length) { firebase.initializeApp(_fbConfig); }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET & TOKENS ───────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#090b0e;--surf:#10131a;--surf2:#161b25;--surf3:#1c2230;
+  --border:#1e2738;--border2:#253047;
+  --gold:#c8a84b;--gold2:#e8c96a;--gold3:#f5dfa0;
+  --red:#e05252;--green:#4caf82;--blue:#5b8dee;
+  --text:#e8eaf2;--dim:#7a8499;--mid:#adb5cc;
+  --font-d:'Bebas Neue',sans-serif;
+  --font-m:'DM Mono',monospace;
+  --font-b:'DM Sans',sans-serif;
+  --r:8px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:15px;line-height:1.6}
+button{cursor:pointer;font-family:var(--font-b)}
+input,select{font-family:var(--font-b)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── VIEWS ────────────────────────────────────────────────────── */
+.view{display:none;min-height:100vh}
+.view.active{display:block}
+
+/* ══════════════════════════════════════════════════════════════
+   LOGIN
+══════════════════════════════════════════════════════════════ */
+#view-login{
+  display:none;align-items:center;justify-content:center;
+  min-height:100vh;padding:24px;
+  background:radial-gradient(ellipse 70% 60% at 50% 0%,rgba(200,168,75,.07) 0%,transparent 65%);
+}
+#view-login.active{display:flex}
+.login-card{
+  width:100%;max-width:400px;
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:14px;padding:40px;
+}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:36px;justify-content:center}
+.logo-mark{
+  width:42px;height:42px;background:var(--gold);color:#000;
+  font-family:var(--font-d);font-size:18px;
+  display:grid;place-items:center;border-radius:6px;letter-spacing:1px;
+}
+.logo-txt{display:flex;flex-direction:column;line-height:1.1}
+.logo-title{font-family:var(--font-d);font-size:18px;letter-spacing:2px}
+.logo-sub{font-family:var(--font-m);font-size:10px;color:var(--dim);letter-spacing:2px;text-transform:uppercase}
+.login-h{font-family:var(--font-d);font-size:28px;letter-spacing:2px;margin-bottom:4px}
+.login-sub{font-size:13px;color:var(--dim);margin-bottom:28px}
+.field{margin-bottom:16px}
+.field label{display:block;font-family:var(--font-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+.field input{
+  width:100%;padding:11px 14px;
+  background:var(--surf2);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text);font-size:14px;outline:none;
+  transition:border-color .2s;
+}
+.field input:focus{border-color:var(--gold)}
+.field input::placeholder{color:var(--dim)}
+.err-msg{
+  display:none;background:rgba(224,82,82,.1);
+  border:1px solid rgba(224,82,82,.3);border-radius:var(--r);
+  padding:10px 14px;color:var(--red);font-family:var(--font-m);font-size:12px;
+  margin-bottom:16px;
+}
+.err-msg.show{display:block}
+.btn-primary{
+  width:100%;padding:12px;background:var(--gold);color:#000;
+  border:none;border-radius:var(--r);
+  font-family:var(--font-d);font-size:18px;letter-spacing:2px;
+  transition:background .2s,transform .1s;
+}
+.btn-primary:hover{background:var(--gold2)}
+.btn-primary:active{transform:scale(.99)}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN LAYOUT (post-login)
+══════════════════════════════════════════════════════════════ */
+#view-app{display:none;flex-direction:column;min-height:100vh}
+#view-app.active{display:flex}
+#view-loading{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+}
+#view-loading.hidden{display:none}
+.loading-spinner{
+  width:36px;height:36px;
+  border:3px solid var(--border);
+  border-top-color:var(--gold);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOPBAR */
+.topbar{
+  position:sticky;top:0;z-index:200;
+  background:rgba(9,11,14,.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  height:56px;display:flex;align-items:center;
+  padding:0 24px;gap:16px;
+}
+.topbar-logo{display:flex;align-items:center;gap:10px}
+.topbar-mark{
+  width:30px;height:30px;background:var(--gold);color:#000;
+  font-family:var(--font-d);font-size:14px;
+  display:grid;place-items:center;border-radius:4px;
+}
+.topbar-name{font-family:var(--font-d);font-size:16px;letter-spacing:2px}
+.topbar-nav{display:flex;gap:4px;margin-left:auto}
+.nav-btn{
+  padding:5px 14px;border-radius:20px;border:1px solid transparent;
+  background:transparent;color:var(--dim);font-size:12px;font-weight:500;
+  transition:all .2s;
+}
+.nav-btn:hover,.nav-btn.active{background:var(--surf2);color:var(--text);border-color:var(--border)}
+.topbar-logout{
+  padding:5px 12px;border-radius:var(--r);
+  border:1px solid var(--border);background:transparent;
+  color:var(--dim);font-size:11px;font-family:var(--font-m);
+  transition:all .2s;margin-left:8px;
+}
+.topbar-logout:hover{color:var(--red);border-color:rgba(224,82,82,.4)}
+
+/* ── PAGES inside app ─────────────────────────────────────────── */
+.page{display:none;flex:1;max-width:1280px;margin:0 auto;width:100%;padding:36px 24px 80px}
+.page.active{display:block}
+
+/* ══════════════════════════════════════════════════════════════
+   ROSTER PAGE
+══════════════════════════════════════════════════════════════ */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.page-title{font-family:var(--font-d);font-size:36px;letter-spacing:2px}
+.btn-add{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 20px;background:var(--gold);color:#000;
+  border:none;border-radius:var(--r);
+  font-family:var(--font-d);font-size:16px;letter-spacing:1px;
+  transition:background .2s;
+}
+.btn-add:hover{background:var(--gold2)}
+
+.pitcher-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.pitcher-card{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:10px;padding:20px;cursor:pointer;
+  transition:border-color .2s,transform .15s,box-shadow .2s;
+  position:relative;overflow:hidden;
+}
+.pitcher-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--gold);transform:scaleX(0);transform-origin:left;
+  transition:transform .25s;
+}
+.pitcher-card:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 10px 32px rgba(200,168,75,.1)}
+.pitcher-card:hover::before{transform:scaleX(1)}
+.card-team{
+  display:inline-block;padding:2px 8px;border-radius:3px;
+  font-family:var(--font-m);font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  background:var(--surf2);color:var(--dim);margin-bottom:8px;
+}
+.card-name{font-family:var(--font-d);font-size:24px;letter-spacing:1.5px;line-height:1;margin-bottom:12px}
+.card-mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.mini-stat{background:var(--surf2);border-radius:5px;padding:8px 10px}
+.mini-stat-lbl{font-family:var(--font-m);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+.mini-stat-val{font-family:var(--font-m);font-size:17px;font-weight:500;color:var(--gold2)}
+.card-meta{margin-top:12px;font-family:var(--font-m);font-size:10px;color:var(--dim)}
+.empty-roster{
+  grid-column:1/-1;text-align:center;padding:80px 20px;
+  color:var(--dim);font-family:var(--font-m);font-size:13px;letter-spacing:1px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PITCHER PROFILE PAGE
+══════════════════════════════════════════════════════════════ */
+.profile-back{
+  display:flex;align-items:center;gap:8px;
+  color:var(--dim);font-size:13px;background:none;border:none;
+  margin-bottom:24px;transition:color .2s;padding:0;
+}
+.profile-back:hover{color:var(--text)}
+.profile-back span{font-size:16px}
+
+.profile-header{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  flex-wrap:wrap;gap:16px;margin-bottom:32px;
+}
+.profile-title-group{}
+.profile-team{
+  display:inline-block;padding:3px 10px;border-radius:3px;
+  font-family:var(--font-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  background:var(--gold);color:#000;font-weight:600;margin-bottom:8px;
+}
+.profile-name{font-family:var(--font-d);font-size:52px;letter-spacing:2px;line-height:.95}
+.profile-sub{font-family:var(--font-m);font-size:11px;color:var(--dim);margin-top:6px;letter-spacing:.5px}
+
+.profile-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.btn-action{
+  padding:9px 18px;border-radius:var(--r);border:1px solid var(--border);
+  background:var(--surf2);color:var(--mid);font-size:12px;font-family:var(--font-m);
+  transition:all .2s;letter-spacing:.5px;
+}
+.btn-action:hover{border-color:var(--gold);color:var(--gold)}
+#export-dropdown-menu.open{display:block!important}
+.btn-action.gold{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+.btn-action.gold:hover{background:var(--gold2)}
+
+/* Summary bar */
+.summary-bar{
+  display:flex;gap:12px;flex-wrap:wrap;margin-bottom:32px;
+}
+.sum-stat{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:10px;padding:14px 20px;text-align:center;min-width:90px;
+}
+.sum-val{font-family:var(--font-m);font-size:24px;font-weight:500;color:var(--gold2);display:block}
+.sum-lbl{font-family:var(--font-m);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:2px;display:block}
+
+/* Pitch tabs */
+.pitch-tabs-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px}
+.ptab{
+  padding:6px 16px;border-radius:20px;border:1px solid var(--border);
+  background:transparent;color:var(--dim);font-family:var(--font-m);font-size:11px;
+  transition:all .2s;
+}
+.ptab:hover{border-color:var(--gold);color:var(--gold)}
+.ptab.active{background:var(--gold);border-color:var(--gold);color:#000;font-weight:600}
+
+/* Main stats layout */
+.stats-layout{display:grid;grid-template-columns:300px 1fr;gap:24px;margin-bottom:32px}
+@media(max-width:700px){.stats-layout{grid-template-columns:1fr}}
+
+.panel-label{font-family:var(--font-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.pov-note{font-size:9px;color:var(--dim)}
+
+/* Heat map */
+.heatmap-wrap{position:relative;width:300px;height:360px}
+canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges}
+.hm-legend{display:flex;gap:14px;margin-top:10px;font-family:var(--font-m);font-size:10px;color:var(--dim)}
+.hm-legend span{display:flex;align-items:center;gap:4px}
+.hm-dot{width:10px;height:10px;border-radius:2px}
+
+/* Stats blocks */
+.stats-col{display:flex;flex-direction:column;gap:14px}
+.stat-block{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.stat-block-title{font-family:var(--font-m);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.stat-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;
+}
+.stat-row:last-child{border-bottom:none}
+.stat-row-lbl{color:var(--mid)}
+.stat-row-val{font-family:var(--font-m);font-weight:500;color:var(--text)}
+.bar-wrap{display:flex;align-items:center;gap:8px}
+.bar{height:4px;border-radius:2px;background:var(--border);width:80px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;background:var(--gold);transition:width .4s}
+.bar-fill.g{background:var(--green)}
+.bar-fill.r{background:var(--red)}
+
+/* ── GAME LOG SECTION ────────────────────────────────────────── */
+.section-title{font-family:var(--font-d);font-size:22px;letter-spacing:2px;margin-bottom:16px}
+.games-list{display:flex;flex-direction:column;gap:12px;margin-bottom:32px}
+.game-card{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+}
+.game-card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;cursor:pointer;gap:12px;flex-wrap:wrap;
+  transition:background .15s;
+}
+.game-card-header:hover{background:var(--surf2)}
+.game-info{}
+.game-date{font-family:var(--font-d);font-size:18px;letter-spacing:1px}
+.game-opp{font-family:var(--font-m);font-size:11px;color:var(--dim);margin-top:1px}
+.game-quick-stats{display:flex;gap:16px;flex-wrap:wrap}
+.gqs{text-align:center}
+.gqs-val{font-family:var(--font-m);font-size:16px;color:var(--gold2);display:block}
+.gqs-lbl{font-family:var(--font-m);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)}
+.game-chevron{color:var(--dim);font-size:18px;transition:transform .2s}
+.game-card.open .game-chevron{transform:rotate(180deg)}
+
+.game-card-body{display:none;padding:0 18px 16px;border-top:1px solid var(--border)}
+.game-card.open .game-card-body{display:block}
+
+/* AB table inside game */
+.ab-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.ab-table th{text-align:left;padding:6px 10px;font-family:var(--font-m);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border)}
+.ab-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--mid);font-family:var(--font-m);font-size:11px}
+.ab-table tr:last-child td{border-bottom:none}
+.ab-table tr:hover td{background:var(--surf2);color:var(--text)}
+.ab-table td:first-child{color:var(--text);font-weight:500}
+.pitch-seq{display:flex;gap:3px;flex-wrap:wrap}
+.pitch-chip{
+  padding:1px 5px;border-radius:3px;font-size:10px;
+  font-family:var(--font-m);
+}
+.pitch-chip.s{background:rgba(76,175,130,.15);color:var(--green);border:1px solid rgba(76,175,130,.3)}
+.pitch-chip.b{background:rgba(224,82,82,.12);color:var(--red);border:1px solid rgba(224,82,82,.25)}
+.pitch-chip.c{background:rgba(255,165,0,.12);color:#ffaa33;border:1px solid rgba(255,165,0,.3)}
+.pitch-chip.mb{background:rgba(91,141,238,.12);color:var(--blue);border:1px solid rgba(91,141,238,.3)}
+
+/* ══════════════════════════════════════════════════════════════
+   LIVE LOGGING PAGE
+══════════════════════════════════════════════════════════════ */
+.log-layout{display:grid;grid-template-columns:1fr 340px;gap:24px}
+@media(max-width:900px){.log-layout{grid-template-columns:1fr}}
+
+/* Left: batter list */
+.batter-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.batter-card{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+}
+.batter-card.active-batter{border-color:var(--gold)}
+.batter-header{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;cursor:pointer;
+}
+.batter-header:hover{background:var(--surf2)}
+.batter-num{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--surf2);border:1px solid var(--border);
+  display:grid;place-items:center;
+  font-family:var(--font-m);font-size:11px;color:var(--dim);flex-shrink:0;
+}
+.active-batter .batter-num{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+.batter-meta{flex:1}
+.batter-hand{font-family:var(--font-m);font-size:10px;color:var(--dim);letter-spacing:1px}
+.batter-count{font-family:var(--font-m);font-size:14px;color:var(--text);font-weight:500}
+.batter-pitches-preview{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
+.batter-body{display:none;padding:0 16px 14px;border-top:1px solid var(--border)}
+.batter-card.open .batter-body{display:block}
+
+/* Code input row */
+.code-input-row{
+  display:flex;gap:8px;margin-top:12px;align-items:center;
+}
+.code-input{
+  flex:1;padding:10px 14px;
+  background:var(--surf3);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text);
+  font-family:var(--font-m);font-size:15px;letter-spacing:2px;
+  outline:none;text-transform:uppercase;transition:border-color .2s;
+}
+.code-input:focus{border-color:var(--gold)}
+.code-input::placeholder{color:var(--dim);letter-spacing:1px;font-size:13px;text-transform:none}
+.btn-log{
+  padding:10px 16px;border-radius:var(--r);
+  background:var(--gold);color:#000;border:none;
+  font-family:var(--font-d);font-size:16px;letter-spacing:1px;
+  transition:background .2s;white-space:nowrap;
+}
+.btn-log:hover{background:var(--gold2)}
+.btn-undo{
+  padding:10px 12px;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--surf2);
+  color:var(--dim);font-family:var(--font-m);font-size:11px;
+  transition:all .2s;
+}
+.btn-undo:hover{border-color:var(--red);color:var(--red)}
+
+/* Parsed pitch display */
+.parsed-pitch{
+  margin-top:10px;padding:10px 14px;
+  background:var(--surf3);border-radius:var(--r);
+  border-left:3px solid var(--gold);
+  font-family:var(--font-m);font-size:12px;color:var(--mid);
+  min-height:38px;
+}
+.parsed-pitch .count-label{color:var(--gold2);font-size:13px;font-weight:500}
+
+/* Pitches logged table in batter */
+.log-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px}
+.log-table th{text-align:left;padding:5px 8px;font-family:var(--font-m);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border)}
+.log-table td{padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--font-m);color:var(--mid)}
+.log-table tr:last-child td{border-bottom:none}
+.s-cell{color:var(--green)}
+.b-cell{color:var(--red)}
+
+/* Add batter btn */
+.btn-new-batter{
+  width:100%;padding:12px;border-radius:var(--r);
+  border:1px dashed var(--border2);background:transparent;
+  color:var(--dim);font-family:var(--font-m);font-size:12px;letter-spacing:1px;
+  transition:all .2s;
+}
+.btn-new-batter:hover{border-color:var(--gold);color:var(--gold)}
+
+/* Right: live heatmap + stats */
+.live-panel{position:sticky;top:72px;align-self:start}
+.live-hm-wrap{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px}
+.live-stats-wrap{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:20px}
+.live-count-display{
+  font-family:var(--font-d);font-size:48px;letter-spacing:3px;
+  color:var(--gold2);text-align:center;margin-bottom:4px;
+}
+.live-count-lbl{font-family:var(--font-m);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);text-align:center;margin-bottom:16px}
+
+/* Hand toggle */
+.hand-toggle{display:flex;gap:6px;margin-bottom:16px}
+.hand-btn{
+  flex:1;padding:7px;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--surf2);
+  color:var(--dim);font-family:var(--font-m);font-size:11px;letter-spacing:1px;
+  transition:all .2s;
+}
+.hand-btn.active{background:var(--gold);border-color:var(--gold);color:#000;font-weight:600}
+
+/* ══════════════════════════════════════════════════════════════
+   MODAL
+══════════════════════════════════════════════════════════════ */
+.modal-overlay{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;
+  padding:24px;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:14px;padding:32px;width:100%;max-width:460px;
+  animation:fadeUp .2s ease;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal h3{font-family:var(--font-d);font-size:26px;letter-spacing:1.5px;margin-bottom:20px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:24px}
+.btn-cancel{
+  padding:9px 18px;border-radius:var(--r);border:1px solid var(--border);
+  background:transparent;color:var(--dim);font-size:13px;
+  transition:all .2s;
+}
+.btn-cancel:hover{color:var(--text);border-color:var(--border2)}
+.btn-confirm{
+  padding:9px 20px;border-radius:var(--r);border:none;
+  background:var(--gold);color:#000;font-family:var(--font-d);font-size:17px;letter-spacing:1px;
+  transition:background .2s;
+}
+.btn-confirm:hover{background:var(--gold2)}
+.select-field{
+  width:100%;padding:11px 14px;
+  background:var(--surf2);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text);font-size:14px;
+  outline:none;transition:border-color .2s;
+  appearance:none;
+}
+.select-field:focus{border-color:var(--gold)}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  padding:10px 18px;border-radius:var(--r);
+  background:var(--surf);border:1px solid var(--border);
+  font-family:var(--font-m);font-size:12px;color:var(--text);
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  transform:translateY(80px);opacity:0;
+  transition:all .3s;pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(76,175,130,.5);color:var(--green)}
+.toast.err{border-color:rgba(224,82,82,.4);color:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- ════════════ LOGIN ════════════ -->
+<!-- Loading screen shown while Firebase checks auth -->
+<div id="view-loading">
+  <div class="loading-spinner"></div>
+  <div style="font-family:var(--font-m);font-size:11px;color:var(--dim);letter-spacing:2px;text-transform:uppercase">Loading...</div>
+</div>
+
+<div id="view-login" class="view">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">NH</div>
+      <div class="logo-txt">
+        <span class="logo-title">Newport Harbor</span>
+        <span class="logo-sub">Pitching Intelligence</span>
+      </div>
+    </div>
+    <h2 class="login-h">SIGN IN</h2>
+    <p class="login-sub">Restricted access. Authorized only.</p>
+    <div class="err-msg" id="login-err">Incorrect credentials. Try again.</div>
+    <div class="field">
+      <label>Username or Email</label>
+      <input type="text" id="login-id" placeholder="Enter username or email" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-pw" placeholder="Enter password" autocomplete="current-password"/>
+    </div>
+    <button class="btn-primary" id="login-btn">SIGN IN</button>
+  </div>
+</div>
+
+<!-- ════════════ APP ════════════ -->
+<div id="view-app" class="view">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-mark">NH</div>
+      <span class="topbar-name">NHHS BASEBALL</span>
+    </div>
+    <div class="topbar-nav">
+      <button class="nav-btn active" data-page="roster">Roster</button>
+      <button class="nav-btn" data-page="log" id="nav-log" style="display:none">Live Log</button>
+      <button class="nav-btn" id="nav-code-key">Code Key</button>
+    </div>
+    <div id="current-user-display" style="font-family:var(--font-m);font-size:11px;color:var(--dim);letter-spacing:1px;padding:4px 10px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r)"></div>
+    <button class="topbar-logout" id="logout-btn">Sign Out</button>
+  </div>
+
+  <!-- ── ROSTER PAGE ── -->
+  <div class="page active" id="page-roster">
+    <div class="page-header">
+      <h1 class="page-title">PITCHER ROSTER</h1>
+      <button class="btn-add" id="add-pitcher-btn">+ Add Pitcher</button>
+    </div>
+    <!-- Search + Sort bar -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="roster-search" placeholder="Search pitcher..." style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:13px;outline:none;flex:1;min-width:180px" oninput="renderRoster()"/>
+      <select id="roster-sort" onchange="renderRoster()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:12px;outline:none;cursor:pointer">
+        <option value="alpha">A → Z</option>
+        <option value="recent">Recently Edited</option>
+        <option value="added">Date Added</option>
+        <option value="team">By Team</option>
+      </select>
+    </div>
+    <div class="pitcher-grid" id="pitcher-grid">
+      <div class="empty-roster" id="empty-roster">No pitchers yet — add one to get started.</div>
+    </div>
+  </div>
+
+  <!-- ── PITCHER PROFILE PAGE ── -->
+  <div class="page" id="page-profile">
+    <button class="profile-back" id="profile-back"><span>←</span> Back to Roster</button>
+    <div class="profile-header">
+      <div class="profile-title-group">
+        <div class="profile-team" id="prof-team"></div>
+        <div class="profile-name" id="prof-name"></div>
+        <div class="profile-sub" id="prof-sub"></div>
+      </div>
+      <div class="profile-actions" style="position:relative">
+        <button class="btn-action gold" id="prof-log-btn">▶ Live Log</button>
+        <!-- Export dropdown -->
+        <div style="position:relative;display:inline-block">
+          <button class="btn-action" id="export-dropdown-btn" onclick="document.getElementById('export-dropdown-menu').classList.toggle('open')" style="display:flex;align-items:center;gap:6px">↓ Export <span style="font-size:10px">▼</span></button>
+          <div id="export-dropdown-menu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);min-width:200px;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+            <button class="btn-action" id="prof-export-png" style="width:100%;text-align:left;border:none;border-radius:0;border-bottom:1px solid var(--border)">↓ Heat Map PNG</button>
+            <button class="btn-action" id="prof-export-pptx" style="width:100%;text-align:left;border:none;border-radius:0;border-bottom:1px solid var(--border)">↓ Scouting Report PPTX</button>
+            <button class="btn-action" id="prof-export-pdf" style="width:100%;text-align:left;border:none;border-radius:0;border-bottom:1px solid var(--border)">↓ Game Log PDF</button>
+            <button class="btn-action" id="prof-print-btn" style="width:100%;text-align:left;border:none;border-radius:0">🖨 Print Report</button>
+          </div>
+        </div>
+        <button class="btn-action" id="prof-delete-btn" style="color:var(--red)">Delete Pitcher</button>
+      </div>
+    </div>
+
+    <div class="summary-bar" id="prof-summary"></div>
+
+    <div class="pitch-tabs-row" id="prof-pitch-tabs"></div>
+
+    <div class="stats-layout">
+      <div>
+        <p class="panel-label">Pitch Locations <span class="pov-note">(Hitter's POV)</span></p>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="hand-btn active" id="hm-hand-all" onclick="setHeatmapHand('ALL')">Both</button>
+          <button class="hand-btn" id="hm-hand-r" onclick="setHeatmapHand('R')">vs RHH</button>
+          <button class="hand-btn" id="hm-hand-l" onclick="setHeatmapHand('L')">vs LHH</button>
+        </div>
+        <div class="heatmap-wrap" style="width:300px;height:360px">
+          <canvas class="heatmap" id="prof-heatmap" width="300" height="360"></canvas>
+        </div>
+      </div>
+      <div class="stats-col" id="prof-stats-col"></div>
+    </div>
+
+    <!-- Charts -->
+    <h2 class="section-title" style="margin-bottom:20px">Pitch Tendency Charts</h2>
+    <div id="prof-charts-section">
+      <!-- Pie charts row 1: situation pitch mix -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;margin-bottom:24px">
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">First Pitch Mix</div>
+          <canvas id="chart-first-pitch" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-first-pitch" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">Ahead in Count</div>
+          <canvas id="chart-ahead" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-ahead" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">Behind (excl. 3-2)</div>
+          <canvas id="chart-behind" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-behind" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">Even incl. 3-2</div>
+          <canvas id="chart-even" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-even" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">2 Strikes (excl. 3-2)</div>
+          <canvas id="chart-two-strike" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-two-strike" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <!-- FPS % row -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;margin-bottom:24px">
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">First Pitch Strike %</div>
+          <canvas id="chart-fps-overall" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-fps-overall" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">FPS% — Fastball</div>
+          <canvas id="chart-fps-fb" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-fps-fb" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">FPS% — Curveball</div>
+          <canvas id="chart-fps-cb" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-fps-cb" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">FPS% — Slider</div>
+          <canvas id="chart-fps-sl" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-fps-sl" style="margin-top:8px"></div>
+        </div>
+        <div class="stat-block" style="text-align:center">
+          <div class="stat-block-title">FPS% — Changeup</div>
+          <canvas id="chart-fps-ch" width="180" height="180" style="margin:8px auto;display:block"></canvas>
+          <div id="legend-fps-ch" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <!-- Avg Velo bar chart -->
+      <div class="stat-block" style="margin-bottom:24px">
+        <div class="stat-block-title">Average Pitch Velocity</div>
+        <canvas id="chart-avg-velo" width="600" height="180" style="display:block;max-width:100%"></canvas>
+      </div>
+    </div>
+
+    <!-- Game log -->
+    <h2 class="section-title">Game Log</h2>
+    <div class="games-list" id="prof-games-list"></div>
+  </div>
+
+  <!-- ── LIVE LOG PAGE ── -->
+  <div class="page" id="page-log">
+    <button class="profile-back" id="log-back"><span>←</span> Back to Profile</button>
+    <div class="profile-header" style="margin-bottom:20px">
+      <div>
+        <div class="profile-team" id="log-team"></div>
+        <div class="profile-name" id="log-name"></div>
+        <div class="profile-sub" id="log-date-info"></div>
+      </div>
+      <button class="btn-action gold" id="save-game-btn">✓ Save Game</button>
+    </div>
+
+    <div class="log-layout">
+      <!-- Left: batters -->
+      <div>
+        <div class="batter-list" id="batter-list"></div>
+        <button class="btn-new-batter" id="new-batter-btn">+ New Batter <span style="font-size:10px;opacity:.6">[Y]</span></button>
+      </div>
+
+      <!-- Right: live panel -->
+      <div class="live-panel">
+        <div class="live-hm-wrap">
+          <p class="panel-label">Live Heat Map <span class="pov-note">(current game)</span></p>
+          <div class="pitch-tabs-row" id="live-pitch-tabs" style="margin-bottom:12px"></div>
+          <canvas class="heatmap" id="live-heatmap" width="280" height="280"></canvas>
+        </div>
+        <div class="live-stats-wrap">
+          <div class="live-count-display" id="live-count">0-0</div>
+          <div class="live-count-lbl">Current Count</div>
+          <div id="live-stats-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ MODALS ════════════ -->
+<!-- Add Pitcher Modal -->
+<div class="modal-overlay" id="modal-add-pitcher">
+  <div class="modal">
+    <h3>ADD PITCHER</h3>
+    <div class="field">
+      <label>Pitcher Name</label>
+      <input type="text" id="new-pitcher-name" class="code-input" style="letter-spacing:0;text-transform:none" placeholder="e.g. Tanner Brown"/>
+    </div>
+    <div class="field">
+      <label>Team</label>
+      <input type="text" id="new-pitcher-team" class="code-input" style="letter-spacing:0;text-transform:none" placeholder="e.g. HB, FV, Los Al"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancel-add-pitcher">Cancel</button>
+      <button class="btn-confirm" id="confirm-add-pitcher">ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Game Modal -->
+<div class="modal-overlay" id="modal-new-game">
+  <div class="modal">
+    <h3>START NEW GAME</h3>
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="game-date" class="code-input" style="letter-spacing:0"/>
+    </div>
+    <div class="field">
+      <label>Opponent</label>
+      <input type="text" id="game-opp" class="code-input" style="letter-spacing:0;text-transform:none" placeholder="e.g. vs Fountain Valley"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancel-new-game">Cancel</button>
+      <button class="btn-confirm" id="confirm-new-game">START</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <h3>DELETE PITCHER?</h3>
+    <p style="color:var(--mid);font-size:14px;margin-bottom:8px">This will permanently delete all data for <strong id="delete-name-label"></strong>. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancel-delete">Cancel</button>
+      <button class="btn-confirm" id="confirm-delete" style="background:var(--red)">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Code Key Modal -->
+<div class="modal-overlay" id="modal-code-key">
+  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" id="close-code-key">✕</button>
+    <h3 style="margin-bottom:4px">CODE KEY</h3>
+    <p style="color:var(--dim);font-family:var(--font-m);font-size:11px;letter-spacing:1px;margin-bottom:24px">Each pitch is logged as a 5-character code. Here's how to build one.</p>
+
+    <!-- Format display -->
+    <div style="display:flex;gap:6px;margin-bottom:28px;flex-wrap:wrap">
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--gold);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:var(--gold2);letter-spacing:2px">1</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Pitch Type</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--dim);font-size:20px">+</div>
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--blue);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:#9fa8ff;letter-spacing:2px">1</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Location</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--dim);font-size:20px">+</div>
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--green);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:var(--green);letter-spacing:2px">S</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Result</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--dim);font-size:20px">+</div>
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--border2);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:var(--text);letter-spacing:2px">90</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Velocity</div>
+      </div>
+    </div>
+
+    <!-- Example -->
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:24px;border-left:3px solid var(--gold)">
+      <div style="font-family:var(--font-m);font-size:10px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Example</div>
+      <div style="font-family:var(--font-d);font-size:36px;color:var(--gold2);letter-spacing:4px">11S90</div>
+      <div style="font-family:var(--font-m);font-size:12px;color:var(--mid);margin-top:6px">Fastball · Upper Inside · Strike · 90 mph</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Digit 1: Pitch Type -->
+      <div class="stat-block">
+        <div class="stat-block-title" style="color:var(--gold)">Digit 1 — Pitch Type</div>
+        <div class="stat-row"><span class="stat-row-lbl">1</span><span class="stat-row-val">Fastball (FB)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">2</span><span class="stat-row-val">Curveball (CB)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">3</span><span class="stat-row-val">Slider (SL)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">4</span><span class="stat-row-val">Changeup (CH)</span></div>
+      </div>
+
+      <!-- Digit 2: Location -->
+      <div class="stat-block">
+        <div class="stat-block-title" style="color:#9fa8ff">Digit 2 — Location (RHH view)</div>
+        <div class="stat-row"><span class="stat-row-lbl">1</span><span class="stat-row-val">Upper Inside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">2</span><span class="stat-row-val">Lower Inside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">3</span><span class="stat-row-val">Upper Outside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">4</span><span class="stat-row-val">Lower Outside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">0</span><span class="stat-row-val">Middle Middle</span></div>
+        <div style="margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim)">For left-handed hitters, inside/outside flips automatically.</div>
+      </div>
+
+      <!-- Digit 3: Result -->
+      <div class="stat-block">
+        <div class="stat-block-title" style="color:var(--green)">Digit 3 — Result</div>
+        <div class="stat-row"><span class="stat-row-lbl">S</span><span class="stat-row-val" style="color:var(--green)">Strike (in zone)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">B</span><span class="stat-row-val" style="color:var(--red)">Ball</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">C</span><span class="stat-row-val" style="color:#ffaa33">Chase (swing out of zone)</span></div>
+        <div style="margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim)">Special: use <strong style="color:var(--text)">0B</strong> (digit 2 = 0, digit 3 = B) for a middle-middle pitch the ump missed.</div>
+      </div>
+
+      <!-- Digits 4-5: Velocity -->
+      <div class="stat-block">
+        <div class="stat-block-title">Digits 4–5 — Velocity (mph)</div>
+        <div class="stat-row"><span class="stat-row-lbl">90</span><span class="stat-row-val">90 mph</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">85</span><span class="stat-row-val">85 mph</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">78</span><span class="stat-row-val">78 mph</span></div>
+        <div style="margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim)">Always two digits. Use the last two digits of the speed — e.g. 92 mph = <strong style="color:var(--text)">92</strong>.</div>
+      </div>
+    </div>
+
+    <!-- Quick reference -->
+    <div class="stat-block" style="margin-top:16px">
+      <div class="stat-block-title">Quick Reference Examples</div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">11S90</span>
+        <span class="stat-row-lbl" style="font-size:12px">Fastball · Upper Inside · Strike · 90 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">13B85</span>
+        <span class="stat-row-lbl" style="font-size:12px">Fastball · Upper Outside · Ball · 85 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">24S78</span>
+        <span class="stat-row-lbl" style="font-size:12px">Curveball · Lower Outside · Strike · 78 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:#ffaa33;letter-spacing:2px;min-width:80px">32C83</span>
+        <span class="stat-row-lbl" style="font-size:12px">Slider · Lower Inside · Chase · 83 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:#5b8dee;letter-spacing:2px;min-width:80px">10B88</span>
+        <span class="stat-row-lbl" style="font-size:12px">Fastball · Middle Middle · Ball (ump miss) · 88 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">41S76</span>
+        <span class="stat-row-lbl" style="font-size:12px">Changeup · Upper Inside · Strike · 76 mph</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
+// ── FIREBASE AUTH (no passwords in code) ────────────────────
+let isLoggedIn = false;
+
+function showView(id) {
+  // Hide loading screen
+  const loading = document.getElementById('view-loading');
+  if (loading) loading.classList.add('hidden');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+firebase.auth().onAuthStateChanged(user => {
+  if (user) {
+    isLoggedIn = true;
+    // Show current user in topbar
+    const el = document.getElementById('current-user-display');
+    if (el) el.textContent = user.email;
+    startDBListener();
+    showView('view-app');
+    waitForDB(() => renderRoster());
+  } else {
+    isLoggedIn = false;
+    dbListenerStarted = false;
+    DB_REF.off();
+    const el = document.getElementById('current-user-display');
+    if (el) el.textContent = '';
+    showView('view-login');
+  }
+});
+
+document.getElementById('login-btn').addEventListener('click', doLogin);
+document.getElementById('login-pw').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('login-id').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pw').focus(); });
+
+function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const err = document.getElementById('login-err');
+  const usernameMap = {
+    'jamesyjlee': 'jamesyjlee@gmail.com',
+    'harrisonlorenz': 'Harrison.lorenz@gmail.com',
+    'joshlee': 'jlee@nmusd.us',
+  };
+  const email = usernameMap[id] || id;
+  err.classList.remove('show');
+  document.getElementById('login-btn').textContent = 'SIGNING IN...';
+  firebase.auth().signInWithEmailAndPassword(email, pw)
+    .then(() => { document.getElementById('login-btn').textContent = 'SIGN IN'; })
+    .catch(() => {
+      document.getElementById('login-btn').textContent = 'SIGN IN';
+      err.classList.add('show');
+    });
+}
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+  firebase.auth().signOut();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE — real-time shared database (initialized in <head>)
+// ═══════════════════════════════════════════════════════════════
+const fbDB = firebase.database();
+const DB_REF = fbDB.ref('nhhs_data');
+
+let DB = {pitchers:[]};
+let dbListenerStarted = false;
+
+function sanitizeDB(val) {
+  if (!val || !val.pitchers) return {pitchers:[]};
+  val.pitchers = Object.values(val.pitchers||{}).map(p => ({
+    ...p,
+    games: Object.values(p.games||{}).map(g => ({
+      ...g,
+      batters: Object.values(g.batters||{}).map(b => ({
+        ...b,
+        pitches: Object.values(b.pitches||{})
+      }))
+    }))
+  }));
+  return val;
+}
+
+function startDBListener() {
+  if (dbListenerStarted) return;
+  dbListenerStarted = true;
+  DB_REF.on('value', snapshot => {
+    DB = sanitizeDB(snapshot.val());
+    if (document.getElementById('page-roster').classList.contains('active')) {
+      renderRoster();
+    }
+  });
+}
+
+function loadData() { return DB; }
+
+function saveData(d) {
+  DB = d;
+  DB_REF.set(d).catch(err => {
+    console.error('Firebase save error:', err);
+    toast('Save failed — check connection', 'err');
+  });
+}
+
+function waitForDB(callback) {
+  DB_REF.once('value', snapshot => {
+    DB = sanitizeDB(snapshot.val());
+    callback();
+  });
+}
+let activePitcherId = null;
+let activeGameSession = null; // {date, opponent, batters:[]}
+let activeLogPitchFilter = 'ALL';
+let activeProfilePitchFilter = 'ALL';
+let heatmapHandFilter = 'ALL'; // 'ALL', 'R', or 'L'
+
+window.setHeatmapHand = function(hand) {
+  heatmapHandFilter = hand;
+  ['all','r','l'].forEach(h => {
+    const btn = document.getElementById('hm-hand-'+h);
+    if (btn) btn.classList.toggle('active', 'hm-hand-'+h === 'hm-hand-'+hand.toLowerCase());
+  });
+  // Re-render just the heatmap with filtered pitches
+  const pitcher = DB.pitchers.find(p => p.id === activePitcherId);
+  if (!pitcher) return;
+  const allP = getAllPitches(pitcher, activeProfilePitchFilter);
+  const filtered = heatmapHandFilter === 'ALL' ? allP : allP.filter(p => {
+    // Match based on what handedness the pitch was thrown to
+    const raw = pitcher.games.flatMap(g=>(g.batters||[]).flatMap(b=>(b.pitches||[]).map(pitch=>({...pitch,parsed:parseCode(pitch.code,pitch.hand)}))));
+    return true; // will filter below
+  });
+  // Better: filter raw pitches by batter handedness
+  const rawFiltered = pitcher.games.flatMap(g=>(g.batters||[])
+    .filter(b => heatmapHandFilter==='ALL' || (b.handedness||'R')[0].toUpperCase()===heatmapHandFilter)
+    .flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code, b.handedness)))).filter(Boolean);
+  const pitchTypeFilter = activeProfilePitchFilter;
+  const finalFiltered = pitchTypeFilter==='ALL' ? rawFiltered : rawFiltered.filter(p=>p.pitchType===pitchTypeFilter);
+  const zoneCounts = {};
+  ['1B','3B','2B','4B','1S','3S','2S','4S','0S','0B'].forEach(z=>zoneCounts[z]=0);
+  finalFiltered.forEach(p=>{ if(zoneCounts[p.zone]!==undefined) zoneCounts[p.zone]++; });
+  drawHeatmap(document.getElementById('prof-heatmap'), zoneCounts);
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CODE PARSER
+// 5-char: [pitch][loc][S/B/C][v1][v2]
+// pitch: 1=FB 2=CB 3=SL 4=CH
+// loc:   1=UpperInside 2=LowerInside 3=UpperOutside 4=LowerOutside 0=Middle
+// S=Strike  B=Ball  C=Chase (counts as strike, plots as ball)
+// Special: 0B = middle middle ball (ump misses called strike)
+// ═══════════════════════════════════════════════════════════════
+const PITCH_MAP = {'1':'FB','2':'CB','3':'SL','4':'CH'};
+const PITCH_NAMES = {'1':'Fastball','2':'Curveball','3':'Slider','4':'Changeup'};
+const PITCH_COLORS = {FB:'#c8a84b',CB:'#4caf82',SL:'#e05252',CH:'#5b8dee'};
+
+function parseCode(raw, handedness='R') {
+  const c = raw.toLowerCase().trim();
+  if (c.length < 5) return null;
+  const p = c[0], loc = c[1], sb = c[2];
+  const velo = parseInt(c[3]+c[4], 10);
+  if (!PITCH_MAP[p]) return null;
+  if (!['s','b','c'].includes(sb)) return null;
+
+  const isChase = sb === 'c';
+  const isStrike = sb === 's' || isChase; // advances count as a strike
+  const plotAsStrike = sb === 's';        // only true S plots in strike zone
+  const isMidBall = loc === '0' && sb === 'b'; // ump miss, centre
+
+  const h = (handedness||'R')[0].toUpperCase();
+  const flip = {'1':'3','2':'4','3':'1','4':'2'};
+  let zoneLoc = loc;
+  if (h === 'L' && loc !== '0') zoneLoc = flip[loc] || loc;
+
+  let zone;
+  if (isMidBall)       zone = '0B';
+  else if (plotAsStrike) zone = zoneLoc + 'S';
+  else                 zone = zoneLoc + 'B'; // ball or chase both go to ball zone
+
+  const locLabels = {
+    '1':{R:'Upper Inside',L:'Upper Outside'},
+    '2':{R:'Lower Inside',L:'Lower Outside'},
+    '3':{R:'Upper Outside',L:'Upper Inside'},
+    '4':{R:'Lower Outside',L:'Lower Inside'},
+    '0':{R:'Middle Middle',L:'Middle Middle'},
+  };
+  const locLabel = (locLabels[loc]||{R:'Unknown',L:'Unknown'})[h==='L'?'L':'R'];
+  const resultLabel = isChase ? 'Chase' : isStrike ? 'Strike' : 'Ball';
+
+  return {
+    pitchKey: p,
+    pitchType: PITCH_MAP[p],
+    pitchName: PITCH_NAMES[p],
+    loc, isStrike, isChase, isMidBall, plotAsStrike,
+    velo: isNaN(velo)?null:velo,
+    zone, locLabel, sb,
+    display: `${resultLabel} — ${locLabel}`,
+    raw: raw.toUpperCase(),
+  };
+}
+
+// Count logic: C counts as strike, 0B counts as ball
+function nextCount(prevCount, isStrike) {
+  const [b,s] = prevCount.split('-').map(Number);
+  if (isStrike) return b + '-' + Math.min(s+1, 2);
+  return Math.min(b+1,3) + '-' + s;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATS ENGINE
+// ═══════════════════════════════════════════════════════════════
+const ZONES = ['1B','3B','2B','4B','1S','3S','2S','4S','0S','0B'];
+
+function getAllPitches(pitcher, filterType='ALL') {
+  const raw = (pitcher.games||[]).filter(g=>!g.isDraft).flatMap(g => (g.batters||[]).flatMap(b => (b.pitches||[])));
+  const parsed = raw.map(p => parseCode(p.code, p.hand)).filter(Boolean);
+  return filterType === 'ALL' ? parsed : parsed.filter(p => p.pitchType === filterType);
+}
+
+function computeStats(pitches) {
+  const total = pitches.length;
+  const strikes = pitches.filter(p => p.isStrike).length;
+  const strikeP = total ? strikes/total : 0;
+  const veloArr = pitches.map(p=>p.velo).filter(v=>v&&v>0);
+  const avgVelo = veloArr.length ? veloArr.reduce((a,b)=>a+b,0)/veloArr.length : 0;
+  const maxVelo = veloArr.length ? Math.max(...veloArr) : 0;
+  const velo50plus = veloArr.filter(v=>v>=50);
+  const avgVelo50 = velo50plus.length ? velo50plus.reduce((a,b)=>a+b,0)/velo50plus.length : 0;
+  const zoneCounts = {};
+  ZONES.forEach(z=>zoneCounts[z]=0);
+  pitches.forEach(p=>{ if(zoneCounts[p.zone]!==undefined) zoneCounts[p.zone]++; });
+  const pitchMix = {};
+  pitches.forEach(p=>{ pitchMix[p.pitchType]=(pitchMix[p.pitchType]||0)+1; });
+  return {total,strikes,strikeP,avgVelo,maxVelo,avgVelo50,zoneCounts,pitchMix};
+}
+
+function computeTendencies(allPitches) {
+  // Group by situation
+  // We need the full sequence with counts to do this properly
+  // allPitches here are already parsed with counts attached
+  const groups = {first:[],ahead:[],behind:[],even:[],twoStrike:[]};
+  allPitches.forEach(p=>{
+    if(!p.count) return;
+    const [b,s] = p.count.split('-').map(Number);
+    if(b===0&&s===0) groups.first.push(p);
+    if(s===2&&b<3) groups.twoStrike.push(p);
+    if(b>s) groups.behind.push(p);
+    else if(s>b) groups.ahead.push(p);
+    else if(b===s&&b>0) groups.even.push(p);
+  });
+  return groups;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ZONE RECTS for 300×300 canvas
+// ═══════════════════════════════════════════════════════════════
+// ── HI-DPI CANVAS HELPER ──────────────────────────────────────
+// Scales canvas by devicePixelRatio so it looks sharp on retina screens
+function setupHiDPI(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  // Use the logical size if already set via CSS, else fall back to attribute
+  const logW = rect.width  || canvas.width;
+  const logH = rect.height || canvas.height;
+  canvas.width  = Math.round(logW  * dpr);
+  canvas.height = Math.round(logH  * dpr);
+  canvas.style.width  = logW  + 'px';
+  canvas.style.height = logH  + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return {ctx, logW, logH, dpr};
+}
+
+// ── GRID LAYOUT ───────────────────────────────────────────────
+// Canvas 300×300. Layout matches the user's screenshot exactly:
+//
+//   Ball zones: 4 corners, each a full quadrant (0→150 or 150→300)
+//   Strike zone box: inset rectangle from 75→225 on both axes
+//   Strike quadrants: 4 cells inside SZ box, split at canvas midpoint (150,150)
+//     Each strike quad is the full SZ-box quadrant MINUS the center square
+//   Center square: 115→185 on both axes, drawn on top
+//
+//  ┌────────────┬────────────┐
+//  │  1B(ball)  │  3B(ball)  │
+//  │     ┌──────┼──────┐     │
+//  │  1S │      │      │ 3S  │
+//  ├─────┤  0S  │  0S  ├─────┤
+//  │  2S │      │      │ 4S  │
+//  │     └──────┼──────┘     │
+//  │  2B(ball)  │  4B(ball)  │
+//  └────────────┴────────────┘
+
+// Key coordinates
+const MID=150;                        // canvas centre
+const SZ1=75,  SZ2=225;              // strike zone box edges
+const CS1=115, CS2=185;              // centre square edges
+
+// We draw each zone as a clipping path so nothing overlaps
+function drawHeatmap(canvas, zoneCounts) {
+  const dpr = window.devicePixelRatio || 1;
+  // Set physical pixel size = logical * dpr
+  const logW = parseInt(canvas.style.width) || canvas.offsetWidth || 300;
+  const logH = parseInt(canvas.style.height) || canvas.offsetHeight || 300;
+  canvas.width  = Math.round(logW * dpr);
+  canvas.height = Math.round(logH * dpr);
+  canvas.style.width  = logW + 'px';
+  canvas.style.height = logH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W=logW, H=logH;
+  const sx=W/300, sy=H/300;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#10131a'; ctx.fillRect(0,0,W,H);
+
+  const total=Object.values(zoneCounts).reduce((a,b)=>a+b,0);
+  const maxC=Math.max(...Object.values(zoneCounts),1);
+
+  function heatColor(zone) {
+    const count=zoneCounts[zone]||0;
+    const pct=count/maxC;
+    // blue(0) -> white(0.5) -> red(1)
+    let r,g,b;
+    if(pct<=0.5){
+      const t=pct*2; // 0→1
+      r=Math.round(30+(255-30)*t);
+      g=Math.round(80+(255-80)*t);
+      b=Math.round(200+(255-200)*t);
+    } else {
+      const t=(pct-0.5)*2; // 0→1
+      r=Math.round(255);
+      g=Math.round(255+(20-255)*t);
+      b=Math.round(255+(20-255)*t);
+    }
+    const alpha=count===0?0.07:0.20+0.72*pct;
+    return {color:`rgba(${r},${g},${b},${alpha})`, count, pct};
+  }
+
+  function label(zone, cx, cy, size) {
+    const count=zoneCounts[zone]||0;
+    const pctStr=total>0?((count/total)*100).toFixed(1)+'%':'0.0%';
+    const fs=Math.max(Math.round(size*.18),9);
+    ctx.fillStyle=count===0?'rgba(120,130,153,.45)':'rgba(232,234,240,.92)';
+    ctx.font=`500 ${fs}px 'DM Mono',monospace`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(pctStr, cx*sx, cy*sy);
+  }
+
+  // ── BALL zones — L-shaped, clipped to exclude the strike zone box ──
+  // Each ball zone is the full corner quadrant MINUS the part of the SZ box that overlaps it
+  const balls=[
+    // top-left: full quad 0→MID, 0→MID, cut SZ1→MID, SZ1→MID
+    {z:'1B', qx1:0,   qy1:0,   qx2:MID, qy2:MID, cx1:SZ1, cy1:SZ1, cx2:MID, cy2:MID, lx:SZ1/2,        ly:SZ1/2},
+    // top-right: full quad MID→300, 0→MID, cut MID→SZ2, SZ1→MID
+    {z:'3B', qx1:MID, qy1:0,   qx2:300, qy2:MID, cx1:MID, cy1:SZ1, cx2:SZ2, cy2:MID, lx:(SZ2+300)/2,  ly:SZ1/2},
+    // bottom-left: full quad 0→MID, MID→300, cut SZ1→MID, MID→SZ2
+    {z:'2B', qx1:0,   qy1:MID, qx2:MID, qy2:300, cx1:SZ1, cy1:MID, cx2:MID, cy2:SZ2, lx:SZ1/2,        ly:(SZ2+300)/2},
+    // bottom-right: full quad MID→300, MID→300, cut MID→SZ2, MID→SZ2
+    {z:'4B', qx1:MID, qy1:MID, qx2:300, qy2:300, cx1:MID, cy1:MID, cx2:SZ2, cy2:SZ2, lx:(SZ2+300)/2,  ly:(SZ2+300)/2},
+  ];
+  balls.forEach(({z,qx1,qy1,qx2,qy2,cx1,cy1,cx2,cy2,lx,ly})=>{
+    const {color}=heatColor(z);
+    // Use evenodd clipping: draw outer quad, punch out the SZ overlap area
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(qx1*sx, qy1*sy, (qx2-qx1)*sx, (qy2-qy1)*sy); // outer
+    ctx.rect(cx1*sx, cy1*sy, (cx2-cx1)*sx, (cy2-cy1)*sy);  // cutout
+    ctx.clip('evenodd');
+    ctx.fillStyle=color;
+    ctx.fillRect(qx1*sx, qy1*sy, (qx2-qx1)*sx, (qy2-qy1)*sy);
+    ctx.restore();
+    label(z, lx, ly, Math.min((qx2-qx1)*sx, (SZ1)*sx)*0.9);
+  });
+
+  // ── STRIKE quadrants (L-shaped: SZ quadrant minus the centre square) ──
+  // Each is drawn using a clip path so the centre area is excluded
+  const strikes=[
+    // 1S: top-left SZ quad. Full rect: SZ1→MID, SZ1→MID. Cut: CS1→MID, CS1→MID
+    {z:'1S', ox1:SZ1, oy1:SZ1, ox2:MID, oy2:MID, cx1:CS1, cy1:CS1, cx2:MID, cy2:MID,
+             lx:(SZ1+CS1)/2, ly:(SZ1+CS1)/2},
+    // 3S: top-right SZ quad. Full rect: MID→SZ2, SZ1→MID. Cut: MID→CS2, CS1→MID
+    {z:'3S', ox1:MID, oy1:SZ1, ox2:SZ2, oy2:MID, cx1:MID, cy1:CS1, cx2:CS2, cy2:MID,
+             lx:(CS2+SZ2)/2, ly:(SZ1+CS1)/2},
+    // 2S: bottom-left SZ quad. Full rect: SZ1→MID, MID→SZ2. Cut: CS1→MID, MID→CS2
+    {z:'2S', ox1:SZ1, oy1:MID, ox2:MID, oy2:SZ2, cx1:CS1, cy1:MID, cx2:MID, cy2:CS2,
+             lx:(SZ1+CS1)/2, ly:(CS2+SZ2)/2},
+    // 4S: bottom-right SZ quad. Full rect: MID→SZ2, MID→SZ2. Cut: MID→CS2, MID→CS2
+    {z:'4S', ox1:MID, oy1:MID, ox2:SZ2, oy2:SZ2, cx1:MID, cy1:MID, cx2:CS2, cy2:CS2,
+             lx:(CS2+SZ2)/2, ly:(CS2+SZ2)/2},
+  ];
+  strikes.forEach(({z,ox1,oy1,ox2,oy2,cx1,cy1,cx2,cy2,lx,ly})=>{
+    const {color}=heatColor(z);
+    // Draw full quad, then punch out center area with background colour
+    ctx.fillStyle=color;
+    ctx.fillRect(ox1*sx,oy1*sy,(ox2-ox1)*sx,(oy2-oy1)*sy);
+    // Erase centre square portion (redraw background)
+    ctx.fillStyle='#10131a';
+    ctx.fillRect(cx1*sx,cy1*sy,(cx2-cx1)*sx,(cy2-cy1)*sy);
+    // Re-draw heat colour excluding centre (using clip)
+    ctx.save();
+    ctx.beginPath();
+    // outer rect
+    ctx.rect(ox1*sx,oy1*sy,(ox2-ox1)*sx,(oy2-oy1)*sy);
+    // inner cutout (evenodd rule)
+    ctx.rect(cx1*sx,cy1*sy,(cx2-cx1)*sx,(cy2-cy1)*sy);
+    ctx.clip('evenodd');
+    ctx.fillStyle=color;
+    ctx.fillRect(ox1*sx,oy1*sy,(ox2-ox1)*sx,(oy2-oy1)*sy);
+    ctx.restore();
+    label(z,lx,ly,(ox2-ox1)*sx*0.7);
+  });
+
+  // ── CENTER square — single block, blended colour of 0S + 0B ──
+  const cnt0s=zoneCounts['0S']||0;
+  const cnt0b=zoneCounts['0B']||0;
+  const {color:cc0s}=heatColor('0S');
+  const {color:cc0b}=heatColor('0B');
+  // If both present, draw 0S fill then 0B as semi-transparent top half
+  ctx.fillStyle=cc0s;
+  ctx.fillRect(CS1*sx,CS1*sy,(CS2-CS1)*sx,(CS2-CS1)*sy);
+  if(cnt0b>0){
+    ctx.fillStyle=cc0b;
+    ctx.globalAlpha=0.5;
+    ctx.fillRect(CS1*sx,CS1*sy,(CS2-CS1)*sx,(CS2-CS1)*sy/2);
+    ctx.globalAlpha=1;
+  }
+  // Single combined % label in the centre
+  const cw=(CS2-CS1)*sx;
+  const ch=(CS2-CS1)*sy;
+  const fs0=Math.max(Math.round(cw*.18),9);
+  const combinedPct=total>0?(((cnt0s+cnt0b)/total)*100).toFixed(1)+'%':'0.0%';
+  ctx.fillStyle=(cnt0s+cnt0b)===0?'rgba(120,130,153,.4)':'rgba(232,234,240,.95)';
+  ctx.font=`600 ${fs0}px 'DM Mono',monospace`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(combinedPct, CS1*sx+cw/2, CS1*sy+ch/2);
+
+  // ── BORDERS ──
+  // Outer ball-zone dividers — clipped to stay outside the strike zone box
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  ctx.rect(SZ1*sx, SZ1*sy, (SZ2-SZ1)*sx, (SZ2-SZ1)*sy);
+  ctx.clip('evenodd');
+  ctx.strokeStyle='rgba(40,50,72,.9)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(MID*sx,0); ctx.lineTo(MID*sx,H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,MID*sy); ctx.lineTo(W,MID*sy); ctx.stroke();
+  ctx.restore();
+
+  // Strike zone box (thick white)
+  ctx.strokeStyle='rgba(232,234,240,.8)'; ctx.lineWidth=2.5;
+  ctx.strokeRect(SZ1*sx,SZ1*sy,(SZ2-SZ1)*sx,(SZ2-SZ1)*sy);
+
+  // Inner SZ dividers — clipped to exclude the entire centre square region
+  ctx.save();
+  ctx.beginPath();
+  // Full canvas minus the centre square (evenodd = paint canvas but not the hole)
+  ctx.rect(0, 0, W, H);
+  ctx.rect(CS1*sx, CS1*sy, (CS2-CS1)*sx, (CS2-CS1)*sy);
+  ctx.clip('evenodd');
+  ctx.strokeStyle='rgba(232,234,240,.3)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(MID*sx,SZ1*sy); ctx.lineTo(MID*sx,SZ2*sy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(SZ1*sx,MID*sy); ctx.lineTo(SZ2*sx,MID*sy); ctx.stroke();
+  ctx.restore();
+
+  // Centre square border (gold)
+  ctx.strokeStyle='rgba(200,168,75,.85)'; ctx.lineWidth=2;
+  ctx.strokeRect(CS1*sx,CS1*sy,(CS2-CS1)*sx,(CS2-CS1)*sy);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-btn[data-page]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+btn.dataset.page).classList.add('active');
+  });
+});
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ROSTER
+// ═══════════════════════════════════════════════════════════════
+function renderRoster() {
+  DB = loadData();
+  const grid = document.getElementById('pitcher-grid');
+  const empty = document.getElementById('empty-roster');
+  [...grid.children].forEach(c=>{ if(c!==empty) c.remove(); });
+
+  const searchEl = document.getElementById('roster-search');
+  const sortEl = document.getElementById('roster-sort');
+  const query = searchEl ? searchEl.value.toLowerCase() : '';
+  const sort = sortEl ? sortEl.value : 'alpha';
+
+  let pitchers = (DB.pitchers||[]).filter(p=>p&&p.id);
+  // Search
+  if (query) pitchers = pitchers.filter(p =>
+    p.name.toLowerCase().includes(query) || (p.team||'').toLowerCase().includes(query)
+  );
+  // Sort
+  if (sort === 'alpha') pitchers.sort((a,b)=>a.name.localeCompare(b.name));
+  else if (sort === 'team') pitchers.sort((a,b)=>(a.team||'').localeCompare(b.team||'') || a.name.localeCompare(b.name));
+  else if (sort === 'added') pitchers.sort((a,b)=>(a.id||0)-(b.id||0));
+  else if (sort === 'recent') pitchers.sort((a,b)=>{
+    const aLast = (a.games||[]).length ? (a.games||[])[(a.games||[]).length-1].date||'' : '';
+    const bLast = (b.games||[]).length ? (b.games||[])[(b.games||[]).length-1].date||'' : '';
+    return bLast.localeCompare(aLast);
+  });
+
+  empty.style.display = pitchers.length ? 'none' : '';
+
+  pitchers.forEach(pitcher=>{
+    const allParsed = getAllPitches(pitcher);
+    const stats = computeStats(allParsed);
+    const card = document.createElement('div');
+    card.className = 'pitcher-card';
+    const mix = Object.entries(stats.pitchMix).sort((a,b)=>b[1]-a[1]);
+    const tags = mix.map(([t])=>`<span style="font-family:var(--font-m);font-size:10px;padding:2px 6px;border-radius:3px;background:var(--surf2);color:${PITCH_COLORS[t]};border:1px solid ${PITCH_COLORS[t]}44">${t}</span>`).join('');
+    const totalGames = (pitcher.games||[]).length;
+    const totalPitches = allParsed.length;
+    card.innerHTML=`
+      <span class="card-team">${pitcher.team||'—'}</span>
+      <div class="card-name">${pitcher.name.toUpperCase()}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${tags}</div>
+      <div class="card-mini-stats">
+        <div class="mini-stat"><div class="mini-stat-lbl">Strike%</div><div class="mini-stat-val">${totalPitches?((stats.strikeP*100).toFixed(0)+'%'):'—'}</div></div>
+        <div class="mini-stat"><div class="mini-stat-lbl">FB Velo</div><div class="mini-stat-val">${(()=>{const a=allParsed.filter(p=>p.pitchType==='FB'&&p.velo>0).map(p=>p.velo);return a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1):'—';})()}</div></div>
+        <div class="mini-stat"><div class="mini-stat-lbl">Pitches</div><div class="mini-stat-val">${totalPitches}</div></div>
+        <div class="mini-stat"><div class="mini-stat-lbl">Max Velo</div><div class="mini-stat-val">${stats.maxVelo||'—'}</div></div>
+      </div>
+      <div class="card-meta">${totalGames} game${totalGames!==1?'s':''} scouted</div>
+    `;
+    card.addEventListener('click',()=>openProfile(pitcher.id));
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADD PITCHER
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('add-pitcher-btn').addEventListener('click',()=>{
+  document.getElementById('new-pitcher-name').value='';
+  document.getElementById('new-pitcher-team').value='';
+  document.getElementById('modal-add-pitcher').classList.add('open');
+  setTimeout(()=>document.getElementById('new-pitcher-name').focus(),100);
+});
+document.getElementById('cancel-add-pitcher').addEventListener('click',()=>document.getElementById('modal-add-pitcher').classList.remove('open'));
+document.getElementById('confirm-add-pitcher').addEventListener('click',()=>{
+  const name = document.getElementById('new-pitcher-name').value.trim();
+  const team = document.getElementById('new-pitcher-team').value.trim();
+  if(!name){toast('Enter a pitcher name','err');return;}
+  const pitcher = {id:Date.now().toString(),name,team,games:[]};
+  DB.pitchers.push(pitcher);
+  saveData(DB);
+  document.getElementById('modal-add-pitcher').classList.remove('open');
+  renderRoster();
+  toast(`${name} added`,'ok');
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════════════════
+function openProfile(pitcherId) {
+  activePitcherId = pitcherId;
+  activeProfilePitchFilter = 'ALL';
+  DB = loadData();
+  const pitcher = DB.pitchers.find(p=>p.id===pitcherId);
+  if(!pitcher) return;
+
+  document.getElementById('prof-team').textContent = pitcher.team||'Unknown';
+  document.getElementById('prof-name').textContent = pitcher.name.toUpperCase();
+
+  const allParsed = getAllPitches(pitcher);
+  const totalGames = (pitcher.games||[]).length;
+  document.getElementById('prof-sub').textContent = `${totalGames} game${totalGames!==1?'s':''} · ${allParsed.length} pitches`;
+
+  renderProfileStats(pitcher, 'ALL');
+  renderProfileGames(pitcher);
+  setTimeout(()=>renderAllCharts(pitcher), 50);
+  showPage('page-profile');
+}
+
+function renderProfileStats(pitcher, filterType) {
+  const allParsed = getAllPitches(pitcher);
+  const filtered = filterType==='ALL' ? allParsed : allParsed.filter(p=>p.pitchType===filterType);
+  const stats = computeStats(filtered);
+  const globalStats = computeStats(allParsed);
+
+  // Summary bar
+  const sumEl = document.getElementById('prof-summary');
+  sumEl.innerHTML = `
+    <div class="sum-stat"><span class="sum-val">${filtered.length?(stats.strikeP*100).toFixed(0)+'%':'—'}</span><span class="sum-lbl">Strike%</span></div>
+
+    <div class="sum-stat"><span class="sum-val">${stats.maxVelo||'—'}</span><span class="sum-lbl">Max Velo</span></div>
+
+    <div class="sum-stat"><span class="sum-val">${filtered.length}</span><span class="sum-lbl">Pitches</span></div>
+  `;
+
+  // Pitch tabs
+  const tabsEl = document.getElementById('prof-pitch-tabs');
+  tabsEl.innerHTML='';
+  const mixEntries = Object.entries(globalStats.pitchMix).sort((a,b)=>b[1]-a[1]);
+  [['ALL','All Pitches'], ...mixEntries.map(([t,cnt])=>[t,`${PITCH_NAMES[Object.keys(PITCH_MAP).find(k=>PITCH_MAP[k]===t)]} (${((cnt/globalStats.total)*100).toFixed(0)}%)`])].forEach(([type,label])=>{
+    const btn=document.createElement('button');
+    btn.className='ptab'+(type===filterType?' active':'');
+    btn.textContent=label;
+    btn.addEventListener('click',()=>{
+      activeProfilePitchFilter=type;
+      renderProfileStats(pitcher,type);
+    });
+    tabsEl.appendChild(btn);
+  });
+
+  // Heatmap
+  drawHeatmap(document.getElementById('prof-heatmap'), stats.zoneCounts);
+
+  // Stats col
+  const col = document.getElementById('prof-stats-col');
+  const inZone = ['1S','3S','2S','4S','0S'].reduce((s,z)=>s+(stats.zoneCounts[z]||0),0);
+  const inZonePct = filtered.length?inZone/filtered.length:0;
+
+  // Pitch mix rows
+  const mixRows = Object.entries(globalStats.pitchMix).sort((a,b)=>b[1]-a[1]).map(([type,cnt])=>{
+    const pct=globalStats.total?cnt/globalStats.total:0;
+    const key=Object.keys(PITCH_MAP).find(k=>PITCH_MAP[k]===type);
+    return `<div class="stat-row"><span class="stat-row-lbl">${PITCH_NAMES[key]}</span>
+      <div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:${(pct*100).toFixed(0)}%;background:${PITCH_COLORS[type]}"></div></div>
+      <span class="stat-row-val">${(pct*100).toFixed(0)}%</span></div></div>`;
+  }).join('');
+
+  // Avg FB velo after 50 per game
+  const fbAfter50GameAvgs2=(pitcher.games||[]).map(game=>{
+    const gp=(game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const after50=gp.slice(50).filter(p=>p.pitchType==='FB'&&p.velo&&p.velo>0).map(p=>p.velo);
+    return after50.length?after50.reduce((a,b)=>a+b,0)/after50.length:null;
+  }).filter(v=>v!==null);
+  const avgFbAfter50Profile=fbAfter50GameAvgs2.length?fbAfter50GameAvgs2.reduce((a,b)=>a+b,0)/fbAfter50GameAvgs2.length:0;
+
+  // Avg velo per pitch type (always shown, not combined)
+  const veloByTypeRows = ['FB','CB','SL','CH'].map(t=>{
+    const arr = allPitches.filter(p=>p.pitchType===t&&p.velo&&p.velo>0).map(p=>p.velo);
+    if(!arr.length) return '';
+    const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
+    const mx = Math.max(...arr);
+    const key = Object.keys(PITCH_MAP).find(k=>PITCH_MAP[k]===t);
+    return `<div class="stat-row">
+      <span class="stat-row-lbl" style="color:${PITCH_COLORS[t]}">${PITCH_NAMES[key]}</span>
+      <span class="stat-row-val">${avg.toFixed(1)} mph <span style="color:var(--dim);font-size:11px">avg</span> · ${mx} <span style="color:var(--dim);font-size:11px">max</span></span>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  // FB after 50 only on ALL tab
+  const fb50Row = filterType==='ALL' ? `<div class="stat-row"><span class="stat-row-lbl">FB After 50</span><span class="stat-row-val">${avgFbAfter50Profile>0?avgFbAfter50Profile.toFixed(1)+' mph':'—'}</span></div>` : '';
+
+  const veloBlock = veloByTypeRows ? `
+    <div class="stat-block">
+      <div class="stat-block-title">Velocity by Pitch Type</div>
+      ${veloByTypeRows}
+      ${fb50Row}
+    </div>` : '';
+
+  col.innerHTML=`
+    <div class="stat-block">
+      <div class="stat-block-title">Strike Rate</div>
+      <div class="stat-row"><span class="stat-row-lbl">Strike %</span>
+        <div class="bar-wrap"><div class="bar"><div class="bar-fill ${stats.strikeP>=.6?'g':stats.strikeP<.5?'r':''}" style="width:${(stats.strikeP*100).toFixed(1)}%"></div></div>
+        <span class="stat-row-val">${filtered.length?((stats.strikeP*100).toFixed(1)+'%'):'—'}</span></div></div>
+      <div class="stat-row"><span class="stat-row-lbl">Strikes / Balls</span><span class="stat-row-val">${stats.strikes} / ${filtered.length-stats.strikes}</span></div>
+    </div>
+    ${veloBlock}
+    <div class="stat-block">
+      <div class="stat-block-title">Zone Control</div>
+      <div class="stat-row"><span class="stat-row-lbl">In Zone %</span>
+        <div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:${(inZonePct*100).toFixed(0)}%"></div></div>
+        <span class="stat-row-val">${(inZonePct*100).toFixed(1)}%</span></div></div>
+      <div class="stat-row"><span class="stat-row-lbl">Out of Zone %</span><span class="stat-row-val">${((1-inZonePct)*100).toFixed(1)}%</span></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-title">Pitch Mix</div>
+      ${mixRows||'<div style="color:var(--dim);font-size:12px">No data yet</div>'}
+    </div>
+  `;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════════════
+const PIE_COLORS = {FB:'#c8a84b',CB:'#4caf82',SL:'#e05252',CH:'#5b8dee'};
+
+function drawPieChart(canvasId, legendId, data, title) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const logW = 180, logH = 180;
+  canvas.width  = Math.round(logW * dpr);
+  canvas.height = Math.round(logH * dpr);
+  canvas.style.width  = logW + 'px';
+  canvas.style.height = logH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = logW, H = logH;
+  ctx.clearRect(0,0,W,H);
+
+  const entries = Object.entries(data).filter(([,v])=>v>0);
+  const total = entries.reduce((s,[,v])=>s+v, 0);
+  if (!total) {
+    ctx.fillStyle = 'rgba(122,130,153,.4)';
+    ctx.font = "11px 'DM Mono',monospace";
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('No data', W/2, H/2);
+    if (legendId) document.getElementById(legendId).innerHTML = '';
+    return;
+  }
+
+  const cx=W/2, cy=H/2, r=Math.min(W,H)/2-6;
+  let angle = -Math.PI/2;
+
+  entries.forEach(([key, val]) => {
+    const slice = (val/total)*2*Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath();
+    ctx.fillStyle = PIE_COLORS[key] || '#888';
+    ctx.fill();
+    ctx.strokeStyle = '#10131a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // label inside slice if big enough
+    if (slice > 0.3) {
+      const mid = angle + slice/2;
+      const lx = cx + Math.cos(mid)*r*0.62;
+      const ly = cy + Math.sin(mid)*r*0.62;
+      ctx.fillStyle = '#000';
+      ctx.font = "bold 11px 'DM Mono',monospace";
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(((val/total)*100).toFixed(0)+'%', lx, ly);
+    }
+    angle += slice;
+  });
+
+  // Legend
+  if (legendId) {
+    const el = document.getElementById(legendId);
+    el.innerHTML = entries.map(([key,val])=>
+      `<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 6px;font-family:var(--font-m);font-size:10px;color:var(--mid)">
+        <span style="width:8px;height:8px;border-radius:2px;background:${PIE_COLORS[key]||'#888'};flex-shrink:0"></span>
+        ${PITCH_NAMES[Object.keys(PITCH_MAP).find(k=>PITCH_MAP[k]===key)]||key} ${((val/total)*100).toFixed(0)}%
+      </span>`
+    ).join('');
+  }
+}
+
+function drawStrikeDonut(canvasId, legendId, strikes, total) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const logW = 180, logH = 180;
+  canvas.width  = Math.round(logW * dpr);
+  canvas.height = Math.round(logH * dpr);
+  canvas.style.width  = logW + 'px';
+  canvas.style.height = logH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = logW, H = logH;
+  ctx.clearRect(0,0,W,H);
+
+  if (!total) {
+    ctx.fillStyle='rgba(122,130,153,.4)';
+    ctx.font="11px 'DM Mono',monospace";
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('No data',W/2,H/2);
+    if(legendId) document.getElementById(legendId).innerHTML='';
+    return;
+  }
+
+  const cx=W/2, cy=H/2, ro=Math.min(W,H)/2-6, ri=ro*0.52;
+  const strikeAngle = (strikes/total)*2*Math.PI;
+  const ballAngle = 2*Math.PI - strikeAngle;
+
+  // Strikes arc
+  ctx.beginPath(); ctx.moveTo(cx,cy);
+  ctx.arc(cx,cy,ro,-Math.PI/2,-Math.PI/2+strikeAngle);
+  ctx.closePath(); ctx.fillStyle='#4caf82'; ctx.fill();
+  ctx.strokeStyle='#10131a'; ctx.lineWidth=2; ctx.stroke();
+
+  // Balls arc
+  ctx.beginPath(); ctx.moveTo(cx,cy);
+  ctx.arc(cx,cy,ro,-Math.PI/2+strikeAngle,-Math.PI/2);
+  ctx.closePath(); ctx.fillStyle='#e05252'; ctx.fill();
+  ctx.strokeStyle='#10131a'; ctx.lineWidth=2; ctx.stroke();
+
+  // Donut hole
+  ctx.beginPath(); ctx.arc(cx,cy,ri,0,2*Math.PI);
+  ctx.fillStyle='#161b25'; ctx.fill();
+
+  // Centre text
+  const pct = ((strikes/total)*100).toFixed(0)+'%';
+  ctx.fillStyle='rgba(232,234,240,.9)';
+  ctx.font="bold 18px 'DM Mono',monospace";
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(pct, cx, cy-6);
+  ctx.font="10px 'DM Mono',monospace";
+  ctx.fillStyle='rgba(122,130,153,.7)';
+  ctx.fillText('strikes', cx, cy+10);
+
+  if(legendId) {
+    const el=document.getElementById(legendId);
+    el.innerHTML=`<span style="font-family:var(--font-m);font-size:10px;color:var(--green)">${strikes}K</span>
+      <span style="font-family:var(--font-m);font-size:10px;color:var(--dim);margin:0 4px">/</span>
+      <span style="font-family:var(--font-m);font-size:10px;color:var(--red)">${total-strikes}B</span>
+      <span style="font-family:var(--font-m);font-size:10px;color:var(--dim);margin-left:4px">(${total} total)</span>`;
+  }
+}
+
+function drawVeloBarChart(canvasId, veloByType) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const logW = canvas.parentElement ? Math.min(canvas.parentElement.clientWidth - 32, 600) : 600;
+  const logH = 180;
+  canvas.width  = Math.round(logW * dpr);
+  canvas.height = Math.round(logH * dpr);
+  canvas.style.width  = logW + 'px';
+  canvas.style.height = logH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = logW, H = logH;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b25'; ctx.fillRect(0,0,W,H);
+
+  const entries = Object.entries(veloByType).filter(([,v])=>v>0);
+  if (!entries.length) {
+    ctx.fillStyle='rgba(122,130,153,.4)';
+    ctx.font="11px 'DM Mono',monospace";
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('No velocity data', W/2, H/2);
+    return;
+  }
+
+  const pad={l:40,r:16,t:16,b:36};
+  const chartW=W-pad.l-pad.r, chartH=H-pad.t-pad.b;
+  const maxV=Math.max(...entries.map(([,v])=>v));
+  const absMin=Math.max(0, Math.min(...entries.map(([,v])=>v)) - 8);
+  const minV=absMin; // absolute baseline so lowest bar is still visible
+  const vRange=maxV-minV||10;
+  const barW=chartW/entries.length*0.55;
+  const gap=chartW/entries.length;
+
+  // Grid lines
+  [0,.25,.5,.75,1].forEach(t=>{
+    const y=pad.t+chartH*(1-t);
+    const vLabel=(minV+vRange*t).toFixed(0);
+    ctx.strokeStyle='rgba(30,39,56,.8)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.fillStyle='rgba(122,130,153,.6)';
+    ctx.font="9px 'DM Mono',monospace";
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(vLabel, pad.l-4, y);
+  });
+
+  entries.forEach(([type,velo],i)=>{
+    const barH=((velo-minV)/vRange)*chartH;
+    const x=pad.l+gap*i+gap/2-barW/2;
+    const y=pad.t+chartH-barH;
+    const color=PIE_COLORS[type]||'#888';
+
+    // Bar gradient
+    const grad=ctx.createLinearGradient(x,y,x,y+barH);
+    grad.addColorStop(0,color);
+    grad.addColorStop(1,color+'55');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x,y,barW,barH,4);
+    else ctx.rect(x,y,barW,barH);
+    ctx.fill();
+
+    // Type label
+    ctx.fillStyle='rgba(173,181,204,.8)';
+    ctx.font="bold 11px 'DM Mono',monospace";
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(type, x+barW/2, pad.t+chartH+6);
+
+    // Velo label on bar
+    ctx.fillStyle='rgba(232,234,240,.9)';
+    ctx.font="bold 12px 'DM Mono',monospace";
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(velo.toFixed(1), x+barW/2, y-3);
+  });
+}
+
+function renderAllCharts(pitcher) {
+  // Collect all pitches with their count info
+  const allRaw = (pitcher.games||[]).flatMap(g =>
+    g.batters.flatMap(b => b.pitches.map(p => ({...p, parsed: parseCode(p.code, p.hand)})))
+  ).filter(p => p.parsed);
+
+  // Situation buckets
+  const buckets = {first:{},ahead:{},behind:{},even:{},twoStrike:{}};
+  const types = ['FB','CB','SL','CH'];
+  types.forEach(t=>{ Object.values(buckets).forEach(bk=>bk[t]=0); });
+
+  allRaw.forEach(({parsed, count}) => {
+    if (!count) return;
+    const [b,s] = count.split('-').map(Number);
+    const t = parsed.pitchType;
+    if (b===0&&s===0)                  buckets.first[t]=(buckets.first[t]||0)+1;
+    if (s===2&&b<3)                    buckets.twoStrike[t]=(buckets.twoStrike[t]||0)+1;
+    if (s>b)                           buckets.ahead[t]=(buckets.ahead[t]||0)+1;
+    if (b>s&&!(b===3&&s===2))          buckets.behind[t]=(buckets.behind[t]||0)+1;
+    if (b===s||(b===3&&s===2))         buckets.even[t]=(buckets.even[t]||0)+1;
+  });
+
+  drawPieChart('chart-first-pitch','legend-first-pitch', buckets.first);
+  drawPieChart('chart-ahead','legend-ahead', buckets.ahead);
+  drawPieChart('chart-behind','legend-behind', buckets.behind);
+  drawPieChart('chart-even','legend-even', buckets.even);
+  drawPieChart('chart-two-strike','legend-two-strike', buckets.twoStrike);
+
+  // FPS% charts — first pitch of each at-bat
+  const firstPitches = (pitcher.games||[]).flatMap(g =>
+    g.batters.map(b => b.pitches[0] ? {p: parseCode(b.pitches[0].code, b.pitches[0].hand)} : null)
+  ).filter(Boolean).map(x=>x.p).filter(Boolean);
+
+  const fpsOverallStrikes = firstPitches.filter(p=>p.isStrike).length;
+  drawStrikeDonut('chart-fps-overall','legend-fps-overall', fpsOverallStrikes, firstPitches.length);
+
+  types.forEach(type=>{
+    const idMap={FB:'fb',CB:'cb',SL:'sl',CH:'ch'};
+    const forType = firstPitches.filter(p=>p.pitchType===type);
+    const sk = forType.filter(p=>p.isStrike).length;
+    drawStrikeDonut(`chart-fps-${idMap[type]}`,`legend-fps-${idMap[type]}`, sk, forType.length);
+  });
+
+  // Avg velo by pitch type
+  const veloByType = {};
+  types.forEach(t=>{
+    const arr = allRaw.map(x=>x.parsed).filter(p=>p.pitchType===t&&p.velo&&p.velo>0).map(p=>p.velo);
+    if (arr.length) veloByType[t] = arr.reduce((a,b)=>a+b,0)/arr.length;
+  });
+  drawVeloBarChart('chart-avg-velo', veloByType);
+}
+
+function renderProfileGames(pitcher) {
+  const list = document.getElementById('prof-games-list');
+  list.innerHTML='';
+  if(!(pitcher.games||[]).length){
+    list.innerHTML='<div style="color:var(--dim);font-family:var(--font-m);font-size:12px;padding:16px 0">No games logged yet.</div>';
+    return;
+  }
+  [...(pitcher.games||[])].reverse().forEach(game=>{
+    // Compute quick stats for this game
+    const allP = (game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const total=allP.length, strikes=allP.filter(p=>p.isStrike).length;
+    const veloArr=allP.map(p=>p.velo).filter(v=>v&&v>0);
+    const avgVelo=veloArr.length?veloArr.reduce((a,b)=>a+b,0)/veloArr.length:0;
+    const fbCnt=allP.filter(p=>p.pitchType==='FB').length;
+    const fpsArr=game.batters.map(b=>b.pitches[0]?parseCode(b.pitches[0].code,b.pitches[0].hand):null).filter(Boolean);
+    const fps=fpsArr.length?fpsArr.filter(p=>p.isStrike).length/fpsArr.length:0;
+
+    const card=document.createElement('div');
+    card.className='game-card';
+    card.innerHTML=`
+      <div class="game-card-header">
+        <div class="game-info">
+          <div class="game-date">${formatDate(game.date)}</div>
+          <div class="game-opp">${game.opponent||''}</div>
+        </div>
+        <div class="game-quick-stats">
+          <div class="gqs"><span class="gqs-val">${total}</span><span class="gqs-lbl">Pitches</span></div>
+          <div class="gqs"><span class="gqs-val">${total?((strikes/total*100).toFixed(0)+'%'):'—'}</span><span class="gqs-lbl">Strike%</span></div>
+          <div class="gqs"><span class="gqs-val">${avgVelo>0?avgVelo.toFixed(1):'—'}</span><span class="gqs-lbl">Avg Velo</span></div>
+          <div class="gqs"><span class="gqs-val">${total?((fbCnt/total*100).toFixed(0)+'%'):'—'}</span><span class="gqs-lbl">FB%</span></div>
+          <div class="gqs"><span class="gqs-val">${fpsArr.length?((fps*100).toFixed(0)+'%'):'—'}</span><span class="gqs-lbl">FPS%</span></div>
+        </div>
+        <span class="game-chevron">▼</span>
+        <button class="resume-game-btn" style="padding:6px 14px;border-radius:var(--r);border:1px solid rgba(200,168,75,.4);background:rgba(200,168,75,.08);color:var(--gold);font-family:var(--font-m);font-size:11px;letter-spacing:1px;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation()">✎ Edit</button>
+      </div>
+      <div class="game-card-body">
+        ${renderAtBatTable(game)}
+      </div>
+    `;
+    card.querySelector('.game-card-header').addEventListener('click',()=>{
+      card.classList.toggle('open');
+    });
+    // Resume button
+    const resumeBtn = card.querySelector('.resume-game-btn');
+    if (resumeBtn) {
+      resumeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resumeGame(game.id);
+      });
+    }
+    list.appendChild(card);
+  });
+}
+
+function resumeGame(gameId) {
+  DB = loadData();
+  const pitcher = DB.pitchers.find(p => p.id === activePitcherId);
+  if (!pitcher) return;
+  const game = (pitcher.games||[]).find(g => g.id === gameId);
+  if (!game) return;
+  activeGameSession = game;
+  // Remove game from pitcher so it gets re-saved on Save Game
+  pitcher.games = (pitcher.games||[]).filter(g => g.id !== gameId);
+  saveData(DB);
+  // Set active batter to last unfinished one, or null if all done
+  const lastUnfinished = activeGameSession.batters.findIndex(b => !b.done);
+  activeBatterIdx = lastUnfinished >= 0 ? lastUnfinished : null;
+  liveCurrentCount = activeBatterIdx !== null ? getLastCount(activeGameSession.batters[activeBatterIdx]) : '0-0';
+  openLogPage();
+  toast('Game resumed — add pitches and save when done', 'ok');
+}
+
+function renderAtBatTable(game) {
+  if(!game.batters.length) return '<p style="color:var(--dim);font-size:12px;padding:12px 0">No at-bats logged.</p>';
+  const rows = game.batters.map((b,i)=>{
+    const pitches = b.pitches.map(p=>{
+      const parsed = parseCode(p.code,p.hand);
+      if(!parsed) return '';
+      const chipClass = parsed.isChase ? 'c' : parsed.isMidBall ? 'mb' : parsed.isStrike ? 's' : 'b';
+      const chipLabel = parsed.isChase ? parsed.pitchType+'C' : parsed.isMidBall ? parsed.pitchType+'0' : parsed.pitchType+(parsed.isStrike?'S':'B');
+      return `<span class="pitch-chip ${chipClass}" title="${parsed.display} | ${p.code.toUpperCase()}">${chipLabel}</span>`;
+    }).join('');
+    const parsedAll = b.pitches.map(p=>parseCode(p.code,p.hand)).filter(Boolean);
+    const cnt=parsedAll.length;
+    const sk=parsedAll.filter(p=>p.isStrike).length;
+    const hand=b.handedness||'R';
+    return `<tr>
+      <td>AB ${i+1} <span style="color:var(--dim);font-size:10px">${hand==='L'?'LHH':'RHH'}</span></td>
+      <td>${cnt}</td>
+      <td class="s-cell">${sk}</td>
+      <td class="b-cell">${cnt-sk}</td>
+      <td><div class="pitch-seq">${pitches}</div></td>
+    </tr>`;
+  }).join('');
+  return `<table class="ab-table">
+    <thead><tr><th>At-Bat</th><th>Pitches</th><th>Strikes</th><th>Balls</th><th>Sequence</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+document.getElementById('profile-back').addEventListener('click',()=>{
+  showPage('page-roster');
+  document.querySelector('.nav-btn[data-page="roster"]').classList.add('active');
+});
+
+// Delete pitcher
+document.getElementById('prof-delete-btn').addEventListener('click',()=>{
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher) return;
+  document.getElementById('delete-name-label').textContent=pitcher.name;
+  document.getElementById('modal-delete').classList.add('open');
+});
+document.getElementById('cancel-delete').addEventListener('click',()=>document.getElementById('modal-delete').classList.remove('open'));
+document.getElementById('confirm-delete').addEventListener('click',()=>{
+  DB.pitchers=DB.pitchers.filter(p=>p.id!==activePitcherId);
+  saveData(DB);
+  document.getElementById('modal-delete').classList.remove('open');
+  showPage('page-roster');
+  document.querySelector('.nav-btn[data-page="roster"]').classList.add('active');
+  renderRoster();
+  toast('Pitcher deleted');
+});
+
+// Export heat map PNG
+document.getElementById('prof-export-png').addEventListener('click',()=>{
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher) return;
+  const canvas=document.getElementById('prof-heatmap');
+  const link=document.createElement('a');
+  link.download=`${pitcher.name.replace(/\s+/g,'-')}_heatmap_${activeProfilePitchFilter}.png`;
+  link.href=canvas.toDataURL('image/png');
+  link.click();
+  toast('Heat map exported','ok');
+});
+
+// Export PDF
+
+// ── PPTX EXPORT ──────────────────────────────────────────────
+document.getElementById('prof-export-pptx').addEventListener('click',()=>{
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher){toast('No pitcher selected','err');return;}
+  toast('Building presentation...');
+  setTimeout(()=>exportPPTX(pitcher), 50);
+});
+
+async function exportPPTX(pitcher) {
+  const BG='090b0e',SURF='10131a',SURF2='161b25',GOLD='c8a84b',GOLD2='e8c96a';
+  const WHITE='e8eaf2',DIM='7a8499',GREEN='4caf82',RED='e05252';
+  const PCOLORS={FB:'c8a84b',CB:'4caf82',SL:'e05252',CH:'5b8dee'};
+  const pTypeNames={FB:'Fastball',CB:'Curveball',SL:'Slider',CH:'Changeup'};
+
+  const allPitches=getAllPitches(pitcher);
+  const stats=computeStats(allPitches);
+
+  // Per-game stats
+  const games=(pitcher.games||[]).map(game=>{
+    const gp=game.batters.flatMap(b=>b.pitches.map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const total=gp.length,strikes=gp.filter(p=>p.isStrike).length;
+    const va=gp.map(p=>p.velo).filter(v=>v&&v>0);
+    const av=va.length?va.reduce((a,b)=>a+b,0)/va.length:0;
+    const fb=gp.filter(p=>p.pitchType==='FB').length;
+    return {date:game.date,opp:game.opponent,total,strikes,strikeP:total?strikes/total:0,avgVelo:av,fbPct:total?fb/total:0};
+  });
+
+  // Situation buckets
+  const allRaw=(pitcher.games||[]).flatMap(g=>(g.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>({...p,parsed:parseCode(p.code,p.hand)}))));
+  const buckets={first:{FB:0,CB:0,SL:0,CH:0},ahead:{FB:0,CB:0,SL:0,CH:0},behind:{FB:0,CB:0,SL:0,CH:0}};
+  allRaw.filter(x=>x.parsed&&x.count).forEach(({parsed,count})=>{
+    const [b,s]=count.split('-').map(Number),t=parsed.pitchType;
+    if(buckets.first[t]===undefined) return;
+    if(b===0&&s===0) buckets.first[t]++;
+    if(s>b)          buckets.ahead[t]++;
+    if(b>s&&!(b===3&&s===2)) buckets.behind[t]++;
+  });
+
+  // First pitch data
+  const firstPs=(pitcher.games||[]).flatMap(g=>(g.batters||[]).map(b=>(b.pitches||[])[0]?parseCode(b.pitches[0].code,b.pitches[0].hand):null)).filter(Boolean);
+  const fpsData={};
+  ['FB','CB','SL','CH'].forEach(t=>{const arr=firstPs.filter(p=>p.pitchType===t);fpsData[t]={total:arr.length,strikes:arr.filter(p=>p.isStrike).length};});
+
+  // Avg velo by type
+  const veloData={};
+  ['FB','CB','SL','CH'].forEach(t=>{const arr=allPitches.filter(p=>p.pitchType===t&&p.velo&&p.velo>0).map(p=>p.velo);if(arr.length)veloData[t]=arr.reduce((a,b)=>a+b,0)/arr.length;});
+
+  // Avg FB velo after pitch 50 within each game, then averaged across games
+  const fbAfter50GameAvgs=(pitcher.games||[]).map(game=>{
+    const gp=(game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const after50=gp.slice(50).filter(p=>p.pitchType==='FB'&&p.velo&&p.velo>0).map(p=>p.velo);
+    return after50.length?after50.reduce((a,b)=>a+b,0)/after50.length:null;
+  }).filter(v=>v!==null);
+  const avgFbAfter50=fbAfter50GameAvgs.length?fbAfter50GameAvgs.reduce((a,b)=>a+b,0)/fbAfter50GameAvgs.length:0;
+
+  // Pitch mix summary (FB vs non-FB)
+  const fbTotal=allPitches.filter(p=>p.pitchType==='FB').length;
+  const nonFbTotal=allPitches.length-fbTotal;
+  const fbPct=allPitches.length?(fbTotal/allPitches.length*100).toFixed(0)+'% fastballs':null;
+  const nonFbPct=allPitches.length?(nonFbTotal/allPitches.length*100).toFixed(0)+'% non-fastballs':null;
+
+  // Overall strike/ball summary
+  const gT=allPitches.length, gS=allPitches.filter(p=>p.isStrike).length;
+  const strikeSum=gT?(gS/gT*100).toFixed(0)+'% strikes':'N/A';
+  const ballSum=gT?((gT-gS)/gT*100).toFixed(0)+'% balls':'N/A';
+
+  // Heatmap
+  const hmCanvas=document.getElementById('prof-heatmap');
+  const hmB64=hmCanvas.toDataURL('image/png').split(',')[1];
+
+  const pres=new PptxGenJS();
+  pres.layout='LAYOUT_16x9';
+  pres.title=pitcher.name+' Scouting Report';
+
+  const sub=pitcher.name+' · Scouting Report';
+
+  function addBg(slide,showSub){
+    slide.background={color:BG};
+    slide.addShape(pres.shapes.RECTANGLE,{x:0,y:0,w:0.18,h:5.625,fill:{color:GOLD},line:{color:GOLD}});
+    if(showSub) slide.addText(sub,{x:5,y:0.08,w:4.8,h:0.28,align:'right',fontSize:8,color:DIM,fontFace:'Courier New',charSpacing:2});
+  }
+
+  function bucketToPie(bucket){
+    const e=Object.entries(bucket).filter(([,v])=>v>0);
+    return [{name:'Mix',labels:e.map(([t])=>pTypeNames[t]||t),values:e.map(([,v])=>v)}];
+  }
+
+  function addSummaryText(slide, line1, line2, x, y, w){
+    slide.addShape(pres.shapes.RECTANGLE,{x,y,w,h:0.55,fill:{color:SURF2},line:{color:'1e2738'}});
+    slide.addShape(pres.shapes.RECTANGLE,{x,y,w:0.06,h:0.55,fill:{color:GOLD},line:{color:GOLD}});
+    slide.addText(line1,{x:x+0.14,y:y+0.04,w:w-0.2,h:0.24,fontSize:14,bold:true,color:WHITE,fontFace:'Courier New',valign:'middle'});
+    if(line2) slide.addText(line2,{x:x+0.14,y:y+0.28,w:w-0.2,h:0.22,fontSize:11,color:DIM,fontFace:'Courier New',valign:'middle'});
+  }
+
+  // ══════════════════════════════════════════════
+  // SLIDE 1 — Title (clean, no stats)
+  // ══════════════════════════════════════════════
+  const s1=pres.addSlide(); addBg(s1,false);
+  // Dark background panel centred vertically
+  s1.addShape(pres.shapes.RECTANGLE,{x:0.18,y:1.3,w:9.64,h:3.1,fill:{color:SURF2},line:{color:SURF2}});
+  s1.addShape(pres.shapes.RECTANGLE,{x:0.18,y:1.3,w:0.08,h:3.1,fill:{color:GOLD},line:{color:GOLD}});
+  s1.addText(pitcher.name.toUpperCase(),{x:0.45,y:1.45,w:9.2,h:1.3,fontSize:58,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:3,valign:'middle'});
+  s1.addText('PITCHING SCOUTING REPORT',{x:0.45,y:2.78,w:9.2,h:0.4,fontSize:14,color:GOLD,fontFace:'Courier New',charSpacing:6});
+  s1.addText((pitcher.team||'') +' · Newport Harbor Baseball · 2025–26',{x:0.45,y:3.22,w:9.2,h:0.3,fontSize:11,color:DIM,fontFace:'Courier New'});
+  // Thin gold rule at bottom
+  s1.addShape(pres.shapes.RECTANGLE,{x:0.45,y:4.05,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
+  s1.addText((pitcher.games||[]).length+' game'+((pitcher.games||[]).length!==1?'s':'')+' scouted  ·  '+allPitches.length+' total pitches',{x:0.45,y:4.15,w:9.2,h:0.28,fontSize:10,color:DIM,fontFace:'Courier New'});
+
+  // ══════════════════════════════════════════════
+  // SLIDE 2 — Strike Percentage
+  // ══════════════════════════════════════════════
+  const s2=pres.addSlide(); addBg(s2,true);
+  s2.addText('STRIKE PERCENTAGE',{x:0.45,y:0.15,w:9.2,h:0.48,fontSize:26,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:3});
+  s2.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
+
+  // Per-pitch-type table
+  const tRows=[[
+    {text:'PITCH TYPE',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:9}},
+    {text:'THROWN',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:9,align:'center'}},
+    {text:'STRIKES',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:9,align:'center'}},
+    {text:'BALLS',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:9,align:'center'}},
+    {text:'STRIKE %',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:9,align:'center'}}
+  ]];
+  let tableGT=0,tableGS=0;
+  ['FB','CB','SL','CH'].forEach(t=>{
+    const arr=allPitches.filter(p=>p.pitchType===t); if(!arr.length) return;
+    const sk=arr.filter(p=>p.isStrike).length; tableGT+=arr.length; tableGS+=sk;
+    tRows.push([
+      {text:pTypeNames[t],options:{color:PCOLORS[t],fontFace:'Courier New',fontSize:10,bold:true,fill:{color:SURF}}},
+      {text:String(arr.length),options:{color:WHITE,fontFace:'Courier New',fontSize:10,align:'center',fill:{color:SURF}}},
+      {text:String(sk),options:{color:GREEN,fontFace:'Courier New',fontSize:10,align:'center',fill:{color:SURF}}},
+      {text:String(arr.length-sk),options:{color:RED,fontFace:'Courier New',fontSize:10,align:'center',fill:{color:SURF}}},
+      {text:(arr.length?(sk/arr.length*100).toFixed(1)+'%':'N/A'),options:{color:GOLD2,fontFace:'Courier New',fontSize:10,bold:true,align:'center',fill:{color:SURF}}}
+    ]);
+  });
+  tRows.push([
+    {text:'TOTAL',options:{bold:true,color:WHITE,fontFace:'Courier New',fontSize:10,fill:{color:SURF2}}},
+    {text:String(tableGT),options:{bold:true,color:WHITE,fontFace:'Courier New',fontSize:10,align:'center',fill:{color:SURF2}}},
+    {text:String(tableGS),options:{bold:true,color:GREEN,fontFace:'Courier New',fontSize:10,align:'center',fill:{color:SURF2}}},
+    {text:String(tableGT-tableGS),options:{bold:true,color:RED,fontFace:'Courier New',fontSize:10,align:'center',fill:{color:SURF2}}},
+    {text:tableGT?(tableGS/tableGT*100).toFixed(1)+'%':'N/A',options:{bold:true,color:GOLD2,fontFace:'Courier New',fontSize:10,align:'center',fill:{color:SURF2}}}
+  ]);
+  s2.addTable(tRows,{x:0.45,y:0.72,w:5.8,colW:[2.0,0.95,0.95,0.95,0.95],rowH:0.4,border:{pt:1,color:'1e2738'}});
+
+  // Doughnut right side
+  if(tableGT>0){
+    s2.addChart(pres.charts.DOUGHNUT,[{name:'Strike%',labels:['Strikes','Balls'],values:[tableGS,tableGT-tableGS]}],{
+      x:6.4,y:0.65,w:3.2,h:2.9,chartColors:[GREEN,RED],holeSize:58,
+      showPercent:true,dataLabelFontSize:11,dataLabelColor:WHITE,dataLabelFontBold:true,
+      showLegend:false,chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:SURF}},
+    });
+    s2.addText((tableGS/tableGT*100).toFixed(1)+'%',{x:7.1,y:1.6,w:1.8,h:0.42,align:'center',fontSize:22,bold:true,color:WHITE,fontFace:'Courier New'});
+    s2.addText('strikes',{x:7.1,y:2.0,w:1.8,h:0.25,align:'center',fontSize:9,color:DIM,fontFace:'Courier New'});
+    // Strike / ball text summary
+    addSummaryText(s2, strikeSum, ballSum, 6.4, 3.65, 3.2);
+  }
+
+  // Game log
+  if(games.length){
+    s2.addText('GAME LOG',{x:0.45,y:3.55,w:5.8,h:0.28,fontSize:9,bold:true,color:GOLD,fontFace:'Courier New',charSpacing:3});
+    const gRows=[[
+      {text:'DATE / OPPONENT',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:8}},
+      {text:'PITCHES',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:8,align:'center'}},
+      {text:'STRIKE%',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:8,align:'center'}},
+      {text:'AVG VELO',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:8,align:'center'}},
+      {text:'FB%',options:{bold:true,color:WHITE,fill:{color:'1e2738'},fontFace:'Courier New',fontSize:8,align:'center'}},
+    ]];
+    games.forEach(g=>{
+      gRows.push([
+        {text:formatDate(g.date)+(g.opp?' — '+g.opp:''),options:{color:WHITE,fontFace:'Courier New',fontSize:8,fill:{color:SURF}}},
+        {text:String(g.total),options:{color:DIM,fontFace:'Courier New',fontSize:8,align:'center',fill:{color:SURF}}},
+        {text:g.total?(g.strikeP*100).toFixed(1)+'%':'N/A',options:{color:GOLD2,fontFace:'Courier New',fontSize:8,bold:true,align:'center',fill:{color:SURF}}},
+        {text:g.avgVelo>0?g.avgVelo.toFixed(1):'N/A',options:{color:WHITE,fontFace:'Courier New',fontSize:8,align:'center',fill:{color:SURF}}},
+        {text:g.total?(g.fbPct*100).toFixed(0)+'%':'N/A',options:{color:PCOLORS.FB,fontFace:'Courier New',fontSize:8,align:'center',fill:{color:SURF}}},
+      ]);
+    });
+    s2.addTable(gRows,{x:0.45,y:3.88,w:5.8,colW:[2.2,0.9,1.0,1.0,0.7],rowH:0.24,border:{pt:1,color:'1e2738'}});
+  }
+
+  // ══════════════════════════════════════════════
+  // SLIDE 3 — Heat Map (no zone key, centred)
+  // ══════════════════════════════════════════════
+  // Draw hi-res heatmap for PPTX — render at 4x size on a temp canvas
+  const hmHiRes=(()=>{
+    const src=document.getElementById('prof-heatmap');
+    const scale=4;
+    const tmp=document.createElement('canvas');
+    const logW=300, logH=300;
+    tmp.width=logW*scale; tmp.height=logH*scale;
+    const tctx=tmp.getContext('2d');
+    tctx.scale(scale,scale);
+    // Re-draw heatmap onto temp canvas at 4x
+    const allParsedHM=getAllPitches(pitcher,activeProfilePitchFilter);
+    const statsHM=computeStats(allParsedHM);
+    // Use existing drawHeatmap but pointed at temp canvas
+    drawHeatmap(tmp, statsHM.zoneCounts);
+    return tmp.toDataURL('image/png').split(',')[1];
+  })();
+
+  const s3=pres.addSlide(); addBg(s3,true);
+  s3.addText('PITCH LOCATION HEAT MAP',{x:0.45,y:0.15,w:9.2,h:0.48,fontSize:26,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:3});
+  s3.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
+  s3.addText("Hitter's POV · All Pitches",{x:0.45,y:0.68,w:9.2,h:0.22,fontSize:9,color:DIM,fontFace:'Courier New'});
+  // Heatmap large and centred — hi-res version
+  s3.addImage({data:'image/png;base64,'+hmHiRes,x:2.25,y:0.92,w:5.1,h:4.62});
+
+  // ══════════════════════════════════════════════
+  // SLIDE 4 — First Pitch Tendencies
+  // ══════════════════════════════════════════════
+  const s4=pres.addSlide(); addBg(s4,true);
+  s4.addText('FIRST PITCH TENDENCIES',{x:0.45,y:0.15,w:9.2,h:0.48,fontSize:26,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:3});
+  s4.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
+
+  const fpE=Object.entries(buckets.first).filter(([,v])=>v>0);
+  const fpT=fpE.reduce((s,[,v])=>s+v,0);
+  const fpsTot=firstPs.length,fpsStr=firstPs.filter(p=>p.isStrike).length;
+
+  if(fpT>0){
+    s4.addText('Pitch mix on first pitch',{x:0.45,y:0.68,w:4.6,h:0.22,fontSize:9,color:DIM,fontFace:'Courier New'});
+    s4.addChart(pres.charts.PIE,bucketToPie(buckets.first),{
+      x:0.3,y:0.9,w:4.8,h:3.8,chartColors:fpE.map(([t])=>PCOLORS[t]||'888888'),
+      showPercent:true,dataLabelFontSize:12,dataLabelColor:'FFFFFF',dataLabelFontBold:true,
+      showLegend:true,legendPos:'b',legendFontSize:10,legendColor:DIM,
+      chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:SURF}},
+    });
+    // FB vs non-FB text
+    const fpFbPct=fpT?(buckets.first.FB/fpT*100).toFixed(0)+'% fastballs':null;
+    const fpNFPct=fpT?((fpT-buckets.first.FB)/fpT*100).toFixed(0)+'% non-fastballs':null;
+    if(fpFbPct) addSummaryText(s4,fpFbPct,fpNFPct,0.45,4.82,4.6);
+  }
+
+  if(fpsTot>0){
+    s4.addText('First pitch strike %',{x:5.3,y:0.68,w:4.4,h:0.22,fontSize:9,color:DIM,fontFace:'Courier New'});
+    s4.addChart(pres.charts.DOUGHNUT,[{name:'FPS%',labels:['Strikes','Balls'],values:[fpsStr,fpsTot-fpsStr]}],{
+      x:5.1,y:0.9,w:4.6,h:3.5,chartColors:[GREEN,RED],holeSize:58,
+      showPercent:true,dataLabelFontSize:12,dataLabelColor:'FFFFFF',dataLabelFontBold:true,
+      showLegend:false,chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:SURF}},
+    });
+    s4.addText((fpsStr/fpsTot*100).toFixed(1)+'%',{x:6.45,y:2.1,w:1.9,h:0.48,align:'center',fontSize:24,bold:true,color:WHITE,fontFace:'Courier New'});
+    s4.addText('first pitch strikes',{x:6.45,y:2.55,w:1.9,h:0.25,align:'center',fontSize:9,color:DIM,fontFace:'Courier New'});
+    // Strike/ball text
+    addSummaryText(s4,(fpsStr/fpsTot*100).toFixed(1)+'% strikes',((fpsTot-fpsStr)/fpsTot*100).toFixed(1)+'% balls',5.1,4.55,4.6);
+  }
+
+  // ══════════════════════════════════════════════
+  // SLIDE 5 — FPS% by Pitch Type (own slide)
+  // ══════════════════════════════════════════════
+  const s5=pres.addSlide(); addBg(s5,true);
+  s5.addText('FIRST PITCH STRIKE % BY PITCH TYPE',{x:0.45,y:0.15,w:9.2,h:0.48,fontSize:22,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:2});
+  s5.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
+
+  const fpsTypes=['FB','CB','SL','CH'].filter(t=>fpsData[t].total>0);
+  const colW5=9.2/Math.max(fpsTypes.length,1);
+  fpsTypes.forEach((t,i)=>{
+    const x=0.45+i*colW5;
+    const d=fpsData[t];
+    const pct=d.total?(d.strikes/d.total*100).toFixed(1):0;
+    s5.addText(pTypeNames[t],{x,y:0.7,w:colW5,h:0.28,align:'center',fontSize:11,bold:true,color:PCOLORS[t],fontFace:'Courier New',charSpacing:2});
+    s5.addChart(pres.charts.DOUGHNUT,[{name:'FPS',labels:['Strikes','Balls'],values:[d.strikes,d.total-d.strikes]}],{
+      x:x+0.1,y:0.98,w:colW5-0.2,h:2.8,chartColors:[PCOLORS[t],SURF2],holeSize:60,
+      showPercent:true,dataLabelFontSize:11,dataLabelColor:WHITE,dataLabelFontBold:true,
+      showLegend:false,chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:SURF}},
+    });
+    s5.addText(pct+'%',{x,y:2.1,w:colW5,h:0.42,align:'center',fontSize:20,bold:true,color:WHITE,fontFace:'Courier New'});
+    s5.addText('strikes',{x,y:2.5,w:colW5,h:0.22,align:'center',fontSize:9,color:DIM,fontFace:'Courier New'});
+    s5.addShape(pres.shapes.RECTANGLE,{x:x+0.1,y:3.9,w:colW5-0.2,h:0.55,fill:{color:SURF2},line:{color:'1e2738'}});
+    s5.addShape(pres.shapes.RECTANGLE,{x:x+0.1,y:3.9,w:0.06,h:0.55,fill:{color:PCOLORS[t]},line:{color:PCOLORS[t]}});
+    s5.addText(d.strikes+' strikes  /  '+(d.total-d.strikes)+' balls',{x:x+0.22,y:3.93,w:colW5-0.35,h:0.28,fontSize:9,color:WHITE,fontFace:'Courier New',valign:'middle'});
+    s5.addText(d.total+' first pitches',{x:x+0.22,y:4.2,w:colW5-0.35,h:0.2,fontSize:8,color:DIM,fontFace:'Courier New',valign:'middle'});
+  });
+
+  // ══════════════════════════════════════════════
+  // SLIDE 6 — Count Situation Pitch Mix (ahead + behind only)
+  // ══════════════════════════════════════════════
+  const s6=pres.addSlide(); addBg(s6,true);
+  s6.addText('PITCH MIX BY COUNT SITUATION',{x:0.45,y:0.15,w:9.2,h:0.48,fontSize:26,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:3});
+  s6.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
+
+  [{key:'ahead',label:'When Ahead in Count'},{key:'behind',label:'When Behind in Count (excl. 3-2)'}].forEach(({key,label},i)=>{
+    const x=0.3+i*4.9,y=0.72;
+    const e=Object.entries(buckets[key]).filter(([,v])=>v>0);
+    const bt=e.reduce((s,[,v])=>s+v,0);
+    s6.addText(label,{x,y,w:4.6,h:0.28,fontSize:10,bold:true,color:GOLD,fontFace:'Courier New'});
+    if(bt>0){
+      s6.addChart(pres.charts.PIE,bucketToPie(buckets[key]),{
+        x,y:y+0.3,w:4.6,h:3.3,chartColors:e.map(([t])=>PCOLORS[t]||'888888'),
+        showPercent:true,dataLabelFontSize:12,dataLabelColor:'FFFFFF',dataLabelFontBold:true,
+        showLegend:true,legendPos:'b',legendFontSize:10,legendColor:DIM,
+        chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:SURF}},
+      });
+      const bFb=buckets[key].FB,bNF=bt-bFb;
+      addSummaryText(s6,(bFb/bt*100).toFixed(0)+'% fastballs',(bNF/bt*100).toFixed(0)+'% non-fastballs',x,4.72,4.6);
+    } else {
+      s6.addText('No data',{x,y:y+1.2,w:4.6,h:0.5,align:'center',fontSize:13,color:DIM,fontFace:'Courier New'});
+    }
+  });
+
+  // ══════════════════════════════════════════════
+  // SLIDE 7 — Pitch Velocity
+  // ══════════════════════════════════════════════
+  const s7=pres.addSlide(); addBg(s7,true);
+  s7.addText('PITCH VELOCITY',{x:0.45,y:0.15,w:9.2,h:0.48,fontSize:26,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:3});
+  s7.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
+
+  const vL=[],vV=[],vC=[];
+  ['FB','CB','SL','CH'].forEach(t=>{if(veloData[t]){vL.push(t);vV.push(parseFloat(veloData[t].toFixed(1)));vC.push('#'+PCOLORS[t]);}});
+  if(vL.length){
+    s7.addText('Average velocity by pitch type (mph)',{x:0.45,y:0.68,w:9.2,h:0.22,fontSize:9,color:DIM,fontFace:'Courier New'});
+    // Render bar chart to hi-res canvas for PPTX
+    const veloCanvas=document.createElement('canvas');
+    const scale4=3;
+    veloCanvas.width=900*scale4; veloCanvas.height=360*scale4;
+    veloCanvas.style.width='900px'; veloCanvas.style.height='360px';
+    document.body.appendChild(veloCanvas);
+    const vctx=veloCanvas.getContext('2d');
+    vctx.scale(scale4,scale4);
+    const VW=900,VH=360;
+    vctx.fillStyle='#161b25'; vctx.fillRect(0,0,VW,VH);
+    const vPad={l:60,r:20,t:30,b:50};
+    const vChartW=VW-vPad.l-vPad.r, vChartH=VH-vPad.t-vPad.b;
+    const vMaxV=Math.max(...vV);
+    const vMinV=Math.max(0,Math.min(...vV)-8);
+    const vRange=vMaxV-vMinV||10;
+    const vBarW=vChartW/vV.length*0.5;
+    const vGap=vChartW/vV.length;
+    // Grid lines
+    [0,.25,.5,.75,1].forEach(t=>{
+      const y=vPad.t+vChartH*(1-t);
+      const label=(vMinV+vRange*t).toFixed(0);
+      vctx.strokeStyle='rgba(37,48,71,.8)'; vctx.lineWidth=1;
+      vctx.beginPath(); vctx.moveTo(vPad.l,y); vctx.lineTo(VW-vPad.r,y); vctx.stroke();
+      vctx.fillStyle='rgba(122,130,153,.7)'; vctx.font="bold 14px 'Arial',monospace";
+      vctx.textAlign='right'; vctx.textBaseline='middle';
+      vctx.fillText(label,vPad.l-6,y);
+    });
+    vV.forEach((velo,i)=>{
+      const barH=((velo-vMinV)/vRange)*vChartH;
+      const x=vPad.l+vGap*i+vGap/2-vBarW/2;
+      const y=vPad.t+vChartH-barH;
+      const grad=vctx.createLinearGradient(x,y,x,y+barH);
+      grad.addColorStop(0,vC[i]); grad.addColorStop(1,vC[i]+'55');
+      vctx.fillStyle=grad;
+      vctx.beginPath();
+      if(vctx.roundRect) vctx.roundRect(x,y,vBarW,barH,6);
+      else vctx.rect(x,y,vBarW,barH);
+      vctx.fill();
+      // Type label
+      vctx.fillStyle='rgba(173,181,204,.9)'; vctx.font="bold 16px Arial";
+      vctx.textAlign='center'; vctx.textBaseline='top';
+      vctx.fillText(vL[i],x+vBarW/2,vPad.t+vChartH+8);
+      // Value
+      vctx.fillStyle='rgba(232,234,240,.95)'; vctx.font="bold 16px 'Courier New'";
+      vctx.textAlign='center'; vctx.textBaseline='bottom';
+      vctx.fillText(velo.toFixed(1),x+vBarW/2,y-4);
+    });
+    const veloImgB64=veloCanvas.toDataURL('image/png').split(',')[1];
+    document.body.removeChild(veloCanvas);
+    s7.addImage({data:'image/png;base64,'+veloImgB64,x:0.45,y:0.92,w:9.2,h:3.6});
+  }
+  // Two stats only: Max Velo + Avg FB velo after 50
+  const veloStats=[
+    {l:'MAX VELOCITY',v:stats.maxVelo?stats.maxVelo+' mph':'N/A'},
+    {l:'AVG FB VELO AFTER 50 PITCHES',v:avgFbAfter50>0?avgFbAfter50.toFixed(1)+' mph':'N/A'},
+  ];
+  veloStats.forEach((col,i)=>{
+    const x=0.45+i*4.7;
+    s7.addShape(pres.shapes.RECTANGLE,{x,y:4.65,w:4.4,h:0.75,fill:{color:SURF2},line:{color:'1e2738'}});
+    s7.addShape(pres.shapes.RECTANGLE,{x,y:4.65,w:0.07,h:0.75,fill:{color:GOLD},line:{color:GOLD}});
+    s7.addText(col.v,{x:x+0.18,y:4.67,w:4.1,h:0.38,fontSize:20,bold:true,color:GOLD2,fontFace:'Courier New',valign:'middle'});
+    s7.addText(col.l,{x:x+0.18,y:5.04,w:4.1,h:0.3,fontSize:8,color:DIM,fontFace:'Courier New',charSpacing:2,valign:'middle'});
+  });
+
+  const fileName=pitcher.name.replace(/\s+/g,'-')+'_Scouting_Report.pptx';
+  await pres.writeFile({fileName});
+  toast('PPTX downloaded!','ok');
+}
+
+document.getElementById('prof-print-btn').addEventListener('click',()=>{
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher) return;
+  printPitcherReport(pitcher);
+});
+
+function printPitcherReport(pitcher) {
+  const allPitches=getAllPitches(pitcher);
+  const stats=computeStats(allPitches);
+  const hmCanvas=document.getElementById('prof-heatmap');
+  const hmImg=hmCanvas.toDataURL('image/png');
+  const gameRows=(pitcher.games||[]).map(game=>{
+    const gp=(game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const t=gp.length,s=gp.filter(p=>p.isStrike).length;
+    const va=gp.map(p=>p.velo).filter(v=>v&&v>0);
+    const av=va.length?va.reduce((a,b)=>a+b,0)/va.length:0;
+    const fb=gp.filter(p=>p.pitchType==='FB').length;
+    return `<tr><td>${formatDate(game.date)}${game.opponent?' — '+game.opponent:''}</td><td>${t}</td><td>${t?((s/t*100).toFixed(1)+'%'):'—'}</td><td>${av>0?av.toFixed(1)+' mph':'—'}</td><td>${t?((fb/t*100).toFixed(0)+'%'):'—'}</td></tr>`;
+  }).join('');
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>${pitcher.name} — Scouting Report</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;padding:32px;color:#111;max-width:900px;margin:0 auto;font-size:13px}
+    h1{font-size:32px;font-weight:900;letter-spacing:3px;text-transform:uppercase;margin-bottom:2px}
+    .sub{color:#888;font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+    .gold-bar{height:3px;background:#c8a84b;margin-bottom:20px;width:100%}
+    .notes-box{border:1px solid #ddd;border-radius:4px;padding:12px;min-height:80px;margin-bottom:20px}
+    .notes-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:6px}
+    .layout{display:flex;gap:24px;margin-bottom:20px}
+    .hm-wrap{flex-shrink:0}
+    .hm-wrap img{width:280px;height:280px;display:block}
+    .stats-wrap{flex:1}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+    th{text-align:left;padding:6px 8px;border-bottom:2px solid #111;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#666}
+    td{padding:7px 8px;border-bottom:1px solid #eee}
+    tr:last-child td{border-bottom:none}
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    .stat-box{background:#f7f7f7;border-radius:4px;padding:10px 14px}
+    .stat-val{font-size:20px;font-weight:700}
+    .stat-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-top:2px}
+    h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#666;border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:8px;margin-top:16px}
+    @media print{body{padding:16px}}
+  </style></head><body>
+  <h1>${pitcher.name}</h1>
+  <div class="sub">${pitcher.team||''} · NHHS Baseball · 2025–26</div>
+  <div class="gold-bar"></div>
+  <div class="notes-label">Scout Notes</div>
+  <div class="notes-box"></div>
+  <div class="layout">
+    <div class="hm-wrap">
+      <h2>Heat Map</h2>
+      <img src="${hmImg}" alt="Heat Map"/>
+    </div>
+    <div class="stats-wrap">
+      <h2>Summary</h2>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val">${allPitches.length?(stats.strikeP*100).toFixed(0)+'%':'—'}</div><div class="stat-lbl">Strike %</div></div>
+        <div class="stat-box"><div class="stat-val">${stats.avgVelo>0?stats.avgVelo.toFixed(1):'—'}</div><div class="stat-lbl">Avg Velo</div></div>
+        <div class="stat-box"><div class="stat-val">${stats.maxVelo||'—'}</div><div class="stat-lbl">Max Velo</div></div>
+        <div class="stat-box"><div class="stat-val">${allPitches.length}</div><div class="stat-lbl">Pitches</div></div>
+      </div>
+      <h2>Pitch Mix</h2>
+      ${Object.entries(stats.pitchMix).sort((a,b)=>b[1]-a[1]).map(([t,cnt])=>{
+        const pct=stats.total?(cnt/stats.total*100).toFixed(0):'0';
+        const key=Object.keys(PITCH_MAP).find(k=>PITCH_MAP[k]===t);
+        return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee"><span>'+PITCH_NAMES[key]+'</span><strong>'+pct+'%</strong></div>';
+      }).join('')}
+    </div>
+  </div>
+  <h2>Game Log</h2>
+  <table><thead><tr><th>Date / Opponent</th><th>Pitches</th><th>Strike%</th><th>Avg Velo</th><th>FB%</th></tr></thead>
+  <tbody>${gameRows}</tbody></table>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+document.getElementById('prof-export-pdf').addEventListener('click',()=>{
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher) return;
+  exportGameLogPDF(pitcher);
+});
+
+function exportGameLogPDF(pitcher) {
+  const allP=getAllPitches(pitcher);
+  const stats=computeStats(allP);
+  const rows=(pitcher.games||[]).map(game=>{
+    const allGameP=game.batters.flatMap(b=>b.pitches.map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const t=allGameP.length,s=allGameP.filter(p=>p.isStrike).length;
+    const va=allGameP.map(p=>p.velo).filter(v=>v&&v>0);
+    const av=va.length?va.reduce((a,b)=>a+b,0)/va.length:0;
+    const fb=allGameP.filter(p=>p.pitchType==='FB').length;
+    const fps=game.batters.map(b=>b.pitches[0]?parseCode(b.pitches[0].code,b.pitches[0].hand):null).filter(p=>p&&p.isStrike).length;
+    const fpsD=game.batters.length;
+    return `<tr><td>${formatDate(game.date)} — ${game.opponent}</td><td>${t}</td><td>${s}</td>
+      <td>${t?((s/t*100).toFixed(1)+'%'):'—'}</td>
+      <td>${av>0?(av.toFixed(1)+' mph'):'—'}</td>
+      <td>${t?((fb/t*100).toFixed(0)+'%'):'—'}</td>
+      <td>${fpsD?((fps/fpsD*100).toFixed(0)+'%'):'—'}</td></tr>`;
+  }).join('');
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>${pitcher.name} — Scouting Report</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Courier New',monospace;padding:48px;color:#111;max-width:1000px;margin:0 auto}
+  h1{font-size:36px;letter-spacing:4px;text-transform:uppercase;margin-bottom:4px}
+  .meta{font-size:11px;color:#777;letter-spacing:1px;margin-bottom:28px;text-transform:uppercase}
+  .summary{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap}
+  .stat{background:#f5f5f5;padding:12px 20px;border-radius:4px;min-width:90px;text-align:center}
+  .stat-val{font-size:22px;font-weight:bold}.stat-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:2px;margin-top:2px}
+  h2{font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;color:#333;border-bottom:1px solid #ddd;padding-bottom:6px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;padding:8px 10px;border-bottom:2px solid #111;font-size:9px;letter-spacing:1.5px;text-transform:uppercase}
+  td{padding:9px 10px;border-bottom:1px solid #e5e5e5}
+  .footer{margin-top:36px;font-size:9px;color:#bbb;letter-spacing:1px;text-transform:uppercase}
+  </style></head><body>
+  <h1>${pitcher.name}</h1>
+  <div class="meta">${pitcher.team} · NHHS Baseball Pitching Intelligence · 2025–26</div>
+  <div class="summary">
+    <div class="stat"><div class="stat-val">${allP.length?(stats.strikeP*100).toFixed(0)+'%':'—'}</div><div class="stat-lbl">Strike%</div></div>
+    <div class="stat"><div class="stat-val">${stats.avgVelo>0?stats.avgVelo.toFixed(1):'—'}</div><div class="stat-lbl">Avg Velo</div></div>
+    <div class="stat"><div class="stat-val">${stats.maxVelo||'—'}</div><div class="stat-lbl">Max Velo</div></div>
+    <div class="stat"><div class="stat-val">${allP.length}</div><div class="stat-lbl">Pitches</div></div>
+    <div class="stat"><div class="stat-val">${(pitcher.games||[]).length}</div><div class="stat-lbl">Games</div></div>
+  </div>
+  <h2>Game Log</h2>
+  <table><thead><tr><th>Date / Opponent</th><th>Pitches</th><th>Strikes</th><th>Strike%</th><th>Avg Velo</th><th>FB%</th><th>FPS%</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="footer">Newport Harbor Baseball · Pitching Intelligence System</div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.close();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE LOGGING
+// ═══════════════════════════════════════════════════════════════
+let activeBatterIdx = null;
+let liveCurrentCount = '0-0';
+let liveFilter = 'ALL';
+
+document.getElementById('prof-log-btn').addEventListener('click',()=>{
+  // Open new game modal or pick existing?
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('game-date').value=today;
+  document.getElementById('game-opp').value='';
+  document.getElementById('modal-new-game').classList.add('open');
+  setTimeout(()=>document.getElementById('game-opp').focus(),100);
+});
+document.getElementById('cancel-new-game').addEventListener('click',()=>document.getElementById('modal-new-game').classList.remove('open'));
+document.getElementById('confirm-new-game').addEventListener('click',()=>{
+  const date=document.getElementById('game-date').value;
+  const opp=document.getElementById('game-opp').value.trim();
+  if(!date){toast('Pick a date','err');return;}
+  activeGameSession={id:Date.now().toString(),date,opponent:opp,batters:[]};
+  document.getElementById('modal-new-game').classList.remove('open');
+  openLogPage();
+});
+
+function openLogPage() {
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher||!activeGameSession) return;
+  activeBatterIdx=null;
+  liveCurrentCount='0-0';
+  liveFilter='ALL';
+
+  document.getElementById('log-team').textContent=pitcher.team||'';
+  document.getElementById('log-name').textContent=pitcher.name.toUpperCase();
+  document.getElementById('log-date-info').textContent=`${formatDate(activeGameSession.date)}${activeGameSession.opponent?' · '+activeGameSession.opponent:''}`;
+
+  renderBatterList();
+  renderLiveHeatmap();
+  renderLiveStats();
+  buildLivePitchTabs();
+
+  document.getElementById('nav-log').style.display='';
+  showPage('page-log');
+  document.querySelector('.nav-btn[data-page="log"]')?.classList.add('active');
+}
+
+function renderBatterList() {
+  const list=document.getElementById('batter-list');
+  list.innerHTML='';
+  activeGameSession.batters.forEach((batter,idx)=>{
+    const pitches=batter.pitches.map(p=>parseCode(p.code,p.hand)).filter(Boolean);
+    const cnt=pitches.length, sk=pitches.filter(p=>p.isStrike).length;
+    const isActive=activeBatterIdx===idx;
+    const isDone=batter.done===true;
+
+    const card=document.createElement('div');
+    card.className='batter-card'+(isActive&&!isDone?' active-batter open':'');
+
+    const seqChips=pitches.map(p=>{ const cc=p.isChase?'c':p.isMidBall?'mb':p.isStrike?'s':'b'; const ll=p.isChase?p.pitchType+'C':p.isMidBall?p.pitchType+'0':p.pitchType+(p.isStrike?'S':'B'); return `<span class="pitch-chip ${cc}">${ll}</span>`; }).join('');
+
+    const tableRows=pitches.map((p,i)=>{
+      const count=batter.pitches[i]?.count||'—';
+      const cc=p.isChase?'c':p.isMidBall?'mb':p.isStrike?'s':'b';
+      const ll=p.isChase?p.pitchType+'C':p.isMidBall?p.pitchType+'0':p.pitchType+(p.isStrike?'S':'B');
+      return `<tr>
+        <td>${i+1}</td>
+        <td style="color:${PITCH_COLORS[p.pitchType]}">${p.pitchName}</td>
+        <td class="${cc}-cell">${p.isChase?'Chase':p.isMidBall?'Mid Ball':p.isStrike?'Strike':'Ball'}</td>
+        <td>${p.locLabel}</td>
+        <td>${p.velo||'—'}</td>
+        <td style="color:var(--gold2)">${count}</td>
+        ${!isDone?`<td><button onclick="editPitch(${idx},${i})" style="padding:2px 8px;border-radius:3px;border:1px solid var(--border);background:var(--surf);color:var(--dim);font-family:var(--font-m);font-size:10px;cursor:pointer">Edit</button></td>`:'<td></td>'}
+      </tr>`;
+    }).join('');
+
+    const statusBadge=isDone
+      ?`<span style="color:var(--green);font-size:11px;font-family:var(--font-m);background:rgba(76,175,130,.12);padding:2px 8px;border-radius:4px;border:1px solid rgba(76,175,130,.3)">DONE</span>`
+      :isActive
+        ?`<span style="color:var(--gold);font-size:11px;font-family:var(--font-m)">ACTIVE</span>`
+        :'';
+
+    card.innerHTML=`
+      <div class="batter-header">
+        <div class="batter-num">${idx+1}</div>
+        <div class="batter-meta">
+          <div class="batter-hand">${batter.handedness==='L'?'LEFT-HANDED':'RIGHT-HANDED'}</div>
+          <div class="batter-count">${cnt} pitch${cnt!==1?'es':''}${cnt?` · ${sk}S ${cnt-sk}B`:''}${isActive&&!isDone?' · <span style="color:var(--gold2)">'+liveCurrentCount+'</span>':''}</div>
+          <div class="pitch-seq batter-pitches-preview">${seqChips}</div>
+        </div>
+        ${statusBadge}
+        <span style="color:var(--dim);font-size:12px;margin-left:6px">▼</span>
+      </div>
+      <div class="batter-body">
+        ${isDone?`
+        <button onclick="reopenAtBat(${idx})" style="margin-top:12px;width:100%;padding:9px;border-radius:var(--r);border:1px solid rgba(200,168,75,.4);background:rgba(200,168,75,.07);color:var(--gold);font-family:var(--font-m);font-size:11px;letter-spacing:1px;cursor:pointer">✎ Reopen At-Bat to Edit</button>
+        `:`
+        <div class="hand-toggle" style="margin-top:12px">
+          <button class="hand-btn ${batter.handedness!=='L'?'active':''}" onclick="setHand(${idx},'R')">RHH</button>
+          <button class="hand-btn ${batter.handedness==='L'?'active':''}" onclick="setHand(${idx},'L')">LHH</button>
+        </div>
+        <div class="code-input-row">
+          <input class="code-input" type="text" maxlength="5" placeholder="e.g. 11S90" id="code-input-${idx}" ${isActive?'autofocus':''}/>
+          <button class="btn-log" onclick="logPitch(${idx})">LOG</button>
+          <button class="btn-undo" onclick="undoPitch(${idx})">Undo</button>
+        </div>
+        <div class="parsed-pitch" id="parsed-${idx}"><span style="color:var(--dim)">Type a 5-digit code to preview...</span></div>
+        `}
+        ${cnt?`<table class="log-table">
+          <thead><tr><th>#</th><th>Type</th><th>Strike?</th><th>Zone</th><th>Velo</th><th>Count</th><th></th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>`:'<p style="color:var(--dim);font-size:12px;padding:10px 0;font-family:var(--font-m)">No pitches logged yet.</p>'}
+        ${!isDone?`<button onclick="endAtBat(${idx})" style="margin-top:12px;width:100%;padding:10px;border-radius:var(--r);border:1px solid rgba(76,175,130,.4);background:rgba(76,175,130,.08);color:var(--green);font-family:var(--font-m);font-size:12px;letter-spacing:1px;cursor:pointer">✓ End At-Bat <span style=\"font-size:10px;opacity:.6\">[Space]</span></button>`:''}
+      </div>
+    `;
+
+    card.querySelector('.batter-header').addEventListener('click',()=>{
+      card.classList.toggle('open');
+      if(!isDone && activeBatterIdx!==idx){
+        activeBatterIdx=idx;
+        liveCurrentCount=getLastCount(batter);
+        renderBatterList();
+        return;
+      }
+    });
+
+    const inp=card.querySelector('.code-input');
+    if(inp){
+      inp.addEventListener('input',()=>previewCode(idx));
+      inp.addEventListener('keydown',e=>{ if(e.key==='Enter') logPitch(idx); });
+    }
+
+    list.appendChild(card);
+  });
+}
+
+window.editPitch=function(batterIdx, pitchIdx){
+  const batter = activeGameSession.batters[batterIdx];
+  if(!batter) return;
+  const pitch = batter.pitches[pitchIdx];
+  if(!pitch) return;
+  const newCode = prompt(`Edit pitch ${pitchIdx+1} — current code: ${pitch.code.toUpperCase()}\nEnter new 5-digit code:`, pitch.code.toUpperCase());
+  if(!newCode) return;
+  const cleaned = newCode.trim().toLowerCase();
+  if(cleaned.length < 5){ toast('Invalid code — needs 5 characters','err'); return; }
+  const parsed = parseCode(cleaned, batter.handedness);
+  if(!parsed){ toast('Invalid code format','err'); return; }
+  // Update code, recalculate counts for all pitches in this batter
+  batter.pitches[pitchIdx].code = cleaned;
+  let count = '0-0';
+  batter.pitches.forEach((p,i) => {
+    const pr = parseCode(p.code, batter.handedness);
+    p.count = count;
+    if(pr) {
+      p.countAfter = nextCount(count, pr.isStrike);
+      count = p.countAfter;
+    }
+  });
+  if(activeBatterIdx===batterIdx) liveCurrentCount = count;
+  renderBatterList();
+  renderLiveHeatmap();
+  renderLiveStats();
+  autoSaveSession();
+  toast('Pitch updated','ok');
+};
+
+window.reopenAtBat=function(idx){
+  const batter=activeGameSession.batters[idx];
+  if(!batter) return;
+  batter.done=false;
+  activeBatterIdx=idx;
+  liveCurrentCount=getLastCount(batter);
+  renderBatterList();
+  renderLiveHeatmap();
+  renderLiveStats();
+  toast(`At-Bat ${idx+1} reopened — add or undo pitches`,'ok');
+  setTimeout(()=>{
+    const inp=document.getElementById(`code-input-${idx}`);
+    if(inp) inp.focus();
+  },100);
+};
+
+// Auto-save current game session to Firebase so nothing is lost
+function autoSaveSession() {
+  if (!activePitcherId || !activeGameSession) return;
+  DB = loadData();
+  const pitcher = DB.pitchers.find(p => p.id === activePitcherId);
+  if (!pitcher) return;
+  // Update or insert the active session as a draft
+  const draftIdx = (pitcher.games||[]).findIndex(g => g.id === activeGameSession.id);
+  if (draftIdx >= 0) {
+    pitcher.games[draftIdx] = {...activeGameSession, isDraft: true};
+  } else {
+    if (!pitcher.games) pitcher.games = [];
+    pitcher.games.push({...activeGameSession, isDraft: true});
+  }
+  saveData(DB);
+}
+
+window.endAtBat=function(idx){
+  const batter=activeGameSession.batters[idx];
+  if(!batter) return;
+  if(!batter.pitches.length){toast('Log at least one pitch first','err');return;}
+  batter.done=true;
+  activeBatterIdx=null;
+  liveCurrentCount='0-0';
+  renderBatterList();
+  renderLiveHeatmap();
+  renderLiveStats();
+  toast(`At-Bat ${idx+1} saved — add next batter below`,'ok');
+  setTimeout(()=>document.getElementById('new-batter-btn').scrollIntoView({behavior:'smooth',block:'nearest'}),150);
+};
+
+function getLastCount(batter) {
+  if(!batter.pitches.length) return '0-0';
+  return batter.pitches[batter.pitches.length-1].countAfter||'0-0';
+}
+
+function setHand(idx, hand) {
+  activeGameSession.batters[idx].handedness=hand;
+  renderBatterList();
+  renderLiveHeatmap();
+}
+
+function previewCode(idx) {
+  const inp=document.getElementById(`code-input-${idx}`);
+  const parsed=document.getElementById(`parsed-${idx}`);
+  if(!inp||!parsed) return;
+  const val=inp.value.trim();
+  if(val.length<5){parsed.innerHTML='<span style="color:var(--dim)">Type a 5-digit code to preview...</span>';return;}
+  const batter=activeGameSession.batters[idx];
+  const p=parseCode(val,batter.handedness);
+  if(!p){parsed.innerHTML='<span style="color:var(--red)">Invalid code</span>';return;}
+  const countAfter=nextCount(liveCurrentCount,p.isStrike);
+  const resultColor = p.isChase ? '#ffaa33' : p.isStrike ? 'var(--green)' : 'var(--red)';
+  const resultWord  = p.isChase ? 'CHASE (S in count, Ball on map)' : p.isMidBall ? 'UMP MISS (0B)' : p.isStrike ? 'STRIKE' : 'BALL';
+  parsed.innerHTML=`<span class="count-label">${liveCurrentCount}</span> → <strong style="color:${resultColor}">${resultWord}</strong> · <span style="color:${PITCH_COLORS[p.pitchType]}">${p.pitchName}</span> · ${p.locLabel} · ${p.velo||'?'} mph → <span class="count-label">${countAfter}</span>`;
+}
+
+window.logPitch = function(idx) {
+  const inp=document.getElementById(`code-input-${idx}`);
+  if(!inp) return;
+  const val=inp.value.trim();
+  if(val.length<5){toast('Enter a valid 5-digit code','err');return;}
+  const batter=activeGameSession.batters[idx];
+  const p=parseCode(val,batter.handedness);
+  if(!p){toast('Invalid code — check format','err');return;}
+
+  const countBefore=liveCurrentCount;
+  const countAfter=nextCount(liveCurrentCount,p.isStrike);
+  liveCurrentCount=countAfter;
+
+  batter.pitches.push({code:val.toLowerCase(),hand:batter.handedness,count:countBefore,countAfter});
+  inp.value='';
+
+  renderBatterList();
+  renderLiveHeatmap();
+  renderLiveStats();
+  autoSaveSession();
+  document.getElementById(`code-input-${idx}`)?.focus();
+  toast(`${p.pitchName} ${p.isStrike?'Strike':'Ball'} — ${countBefore} → ${countAfter}`,'ok');
+};
+
+window.undoPitch = function(idx) {
+  const batter=activeGameSession.batters[idx];
+  if(!batter.pitches.length){toast('Nothing to undo','err');return;}
+  const removed=batter.pitches.pop();
+  liveCurrentCount=removed.count||'0-0';
+  renderBatterList();
+  renderLiveHeatmap();
+  renderLiveStats();
+  toast('Last pitch removed');
+};
+
+document.getElementById('new-batter-btn').addEventListener('click',()=>{
+  activeGameSession.batters.push({handedness:'R',pitches:[]});
+  activeBatterIdx=activeGameSession.batters.length-1;
+  liveCurrentCount='0-0';
+  renderBatterList();
+  renderLiveHeatmap();
+  // scroll to new batter
+  setTimeout(()=>{
+    const cards=document.querySelectorAll('.batter-card');
+    if(cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'nearest'});
+    document.getElementById(`code-input-${activeBatterIdx}`)?.focus();
+  },100);
+});
+
+function buildLivePitchTabs() {
+  const tabs=document.getElementById('live-pitch-tabs');
+  tabs.innerHTML='';
+  [['ALL','All'],['FB','FB'],['CB','CB'],['SL','SL'],['CH','CH']].forEach(([type,label])=>{
+    const btn=document.createElement('button');
+    btn.className='ptab'+(type===liveFilter?' active':'');
+    btn.textContent=label;
+    btn.addEventListener('click',()=>{liveFilter=type;buildLivePitchTabs();renderLiveHeatmap();});
+    tabs.appendChild(btn);
+  });
+}
+
+function renderLiveHeatmap() {
+  const allPitches=activeGameSession.batters.flatMap(b=>b.pitches.map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+  const filtered=liveFilter==='ALL'?allPitches:allPitches.filter(p=>p.pitchType===liveFilter);
+  const stats=computeStats(filtered);
+  drawHeatmap(document.getElementById('live-heatmap'),stats.zoneCounts);
+}
+
+function renderLiveStats() {
+  const allPitches=activeGameSession.batters.flatMap(b=>b.pitches.map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+  const stats=computeStats(allPitches);
+  const el=document.getElementById('live-stats-content');
+
+  document.getElementById('live-count').textContent=liveCurrentCount;
+
+  const mixRows=Object.entries(stats.pitchMix).sort((a,b)=>b[1]-a[1]).map(([type,cnt])=>{
+    const pct=stats.total?cnt/stats.total:0;
+    const key=Object.keys(PITCH_MAP).find(k=>PITCH_MAP[k]===type);
+    return `<div class="stat-row"><span class="stat-row-lbl">${PITCH_NAMES[key]}</span>
+      <div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:${(pct*100).toFixed(0)}%;background:${PITCH_COLORS[type]}"></div></div>
+      <span class="stat-row-val">${(pct*100).toFixed(0)}%</span></div></div>`;
+  }).join('');
+
+  el.innerHTML=`
+    <div class="stat-row"><span class="stat-row-lbl">Pitches</span><span class="stat-row-val">${stats.total}</span></div>
+    <div class="stat-row"><span class="stat-row-lbl">Strike %</span><span class="stat-row-val ${stats.strikeP>=.6?'':''}">${stats.total?((stats.strikeP*100).toFixed(1)+'%'):'—'}</span></div>
+    <div class="stat-row"><span class="stat-row-lbl">Avg Velo</span><span class="stat-row-val">${stats.avgVelo>0?stats.avgVelo.toFixed(1):'—'}</span></div>
+    <div class="stat-row" style="border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px"><span class="stat-row-lbl">Batters Faced</span><span class="stat-row-val">${activeGameSession.batters.length}</span></div>
+    ${mixRows}
+  `;
+}
+
+// Save game
+document.getElementById('save-game-btn').addEventListener('click',()=>{
+  if(!activePitcherId||!activeGameSession) return;
+  if(!activeGameSession.batters.length||!activeGameSession.batters.some(b=>b.pitches.length)){
+    toast('Log at least one pitch first','err');return;
+  }
+  DB=loadData();
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher){toast('Pitcher not found','err');return;}
+  if(!pitcher.games) pitcher.games=[];
+  // Remove any existing draft of this session before saving final
+  pitcher.games = pitcher.games.filter(g=>g.id!==activeGameSession.id);
+  const finalGame = {...activeGameSession, isDraft:false};
+  pitcher.games.push(finalGame);
+  saveData(DB);
+  activeGameSession=null;
+  document.getElementById('nav-log').style.display='none';
+  toast('Game saved!','ok');
+  openProfile(activePitcherId);
+});
+
+document.getElementById('log-back').addEventListener('click',()=>{
+  if(activeGameSession&&activeGameSession.batters.some(b=>(b.pitches||[]).length)){
+    if(!confirm('Go back to profile? Any unsaved progress this session will not be saved as a completed game. Your draft is preserved — use Resume/Edit to continue later.')) return;
+  }
+  // Don't clear session — leave draft in Firebase so it can be resumed
+  document.getElementById('nav-log').style.display='none';
+  openProfile(activePitcherId);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function formatDate(d) {
+  if(!d) return '—';
+  const [y,m,day]=d.split('-');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
+}
+
+let toastTimer=null;
+function toast(msg,type='') {
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast show'+(type?' '+type:'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+// Code Key modal
+document.getElementById('nav-code-key').addEventListener('click',()=>{
+  document.getElementById('modal-code-key').classList.add('open');
+});
+document.getElementById('close-code-key').addEventListener('click',()=>{
+  document.getElementById('modal-code-key').classList.remove('open');
+});
+document.getElementById('modal-code-key').addEventListener('click',e=>{
+  if(e.target===document.getElementById('modal-code-key'))
+    document.getElementById('modal-code-key').classList.remove('open');
+});
+
+// Auth state handled by firebase.auth().onAuthStateChanged above
+</script>
+</body>
+</html>

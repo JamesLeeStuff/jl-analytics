@@ -7,6 +7,7 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -200,6 +201,7 @@ input,select{font-family:var(--font-b)}
   transition:all .2s;letter-spacing:.5px;
 }
 .btn-action:hover{border-color:var(--gold);color:var(--gold)}
+#export-dropdown-menu.open{display:block!important}
 .btn-action.gold{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
 .btn-action.gold:hover{background:var(--gold2)}
 
@@ -232,7 +234,7 @@ input,select{font-family:var(--font-b)}
 .pov-note{font-size:9px;color:var(--dim)}
 
 /* Heat map */
-.heatmap-wrap{position:relative;width:300px;height:300px}
+.heatmap-wrap{position:relative;width:300px;height:360px}
 canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges}
 .hm-legend{display:flex;gap:14px;margin-top:10px;font-family:var(--font-m);font-size:10px;color:var(--dim)}
 .hm-legend span{display:flex;align-items:center;gap:4px}
@@ -508,6 +510,16 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
       <h1 class="page-title">PITCHER ROSTER</h1>
       <button class="btn-add" id="add-pitcher-btn">+ Add Pitcher</button>
     </div>
+    <!-- Search + Sort bar -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="roster-search" placeholder="Search pitcher..." style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:13px;outline:none;flex:1;min-width:180px" oninput="renderRoster()"/>
+      <select id="roster-sort" onchange="renderRoster()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:12px;outline:none;cursor:pointer">
+        <option value="alpha">A → Z</option>
+        <option value="recent">Recently Edited</option>
+        <option value="added">Date Added</option>
+        <option value="team">By Team</option>
+      </select>
+    </div>
     <div class="pitcher-grid" id="pitcher-grid">
       <div class="empty-roster" id="empty-roster">No pitchers yet — add one to get started.</div>
     </div>
@@ -522,11 +534,18 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
         <div class="profile-name" id="prof-name"></div>
         <div class="profile-sub" id="prof-sub"></div>
       </div>
-      <div class="profile-actions">
+      <div class="profile-actions" style="position:relative">
         <button class="btn-action gold" id="prof-log-btn">▶ Live Log</button>
-        <button class="btn-action" id="prof-export-png">↓ Heat Map PNG</button>
-        <button class="btn-action" id="prof-export-pptx">↓ Scouting Report PPTX</button>
-        <button class="btn-action" id="prof-export-pdf">↓ Game Log PDF</button>
+        <!-- Export dropdown -->
+        <div style="position:relative;display:inline-block">
+          <button class="btn-action" id="export-dropdown-btn" onclick="document.getElementById('export-dropdown-menu').classList.toggle('open')" style="display:flex;align-items:center;gap:6px">↓ Export <span style="font-size:10px">▼</span></button>
+          <div id="export-dropdown-menu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);min-width:200px;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+            <button class="btn-action" id="prof-export-png" style="width:100%;text-align:left;border:none;border-radius:0;border-bottom:1px solid var(--border)">↓ Heat Map PNG</button>
+            <button class="btn-action" id="prof-export-pptx" style="width:100%;text-align:left;border:none;border-radius:0;border-bottom:1px solid var(--border)">↓ Scouting Report PPTX</button>
+            <button class="btn-action" id="prof-export-pdf" style="width:100%;text-align:left;border:none;border-radius:0;border-bottom:1px solid var(--border)">↓ Game Log PDF</button>
+            <button class="btn-action" id="prof-print-btn" style="width:100%;text-align:left;border:none;border-radius:0">🖨 Print Report</button>
+          </div>
+        </div>
         <button class="btn-action" id="prof-delete-btn" style="color:var(--red)">Delete Pitcher</button>
       </div>
     </div>
@@ -538,13 +557,13 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
     <div class="stats-layout">
       <div>
         <p class="panel-label">Pitch Locations <span class="pov-note">(Hitter's POV)</span></p>
-        <div class="heatmap-wrap">
-          <canvas class="heatmap" id="prof-heatmap" width="300" height="300"></canvas>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="hand-btn active" id="hm-hand-all" onclick="setHeatmapHand('ALL')">Both</button>
+          <button class="hand-btn" id="hm-hand-r" onclick="setHeatmapHand('R')">vs RHH</button>
+          <button class="hand-btn" id="hm-hand-l" onclick="setHeatmapHand('L')">vs LHH</button>
         </div>
-        <div class="hm-legend">
-          <span><span class="hm-dot" style="background:rgba(30,80,200,.7)"></span>Low</span>
-          <span><span class="hm-dot" style="background:rgba(255,255,255,.85)"></span>Mid</span>
-          <span><span class="hm-dot" style="background:rgba(224,30,30,.9)"></span>High</span>
+        <div class="heatmap-wrap" style="width:300px;height:360px">
+          <canvas class="heatmap" id="prof-heatmap" width="300" height="360"></canvas>
         </div>
       </div>
       <div class="stats-col" id="prof-stats-col"></div>
@@ -637,7 +656,7 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
       <!-- Left: batters -->
       <div>
         <div class="batter-list" id="batter-list"></div>
-        <button class="btn-new-batter" id="new-batter-btn">+ New Batter</button>
+        <button class="btn-new-batter" id="new-batter-btn">+ New Batter <span style="font-size:10px;opacity:.6">[Y]</span></button>
       </div>
 
       <!-- Right: live panel -->
@@ -825,50 +844,51 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
 // ═══════════════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════════════
-const CREDENTIALS = [
-  {id:'jamesyjlee',               pw:'Farmer79$'},
-  {id:'jamesyjlee@gmail.com',     pw:'Farmer79$'},
-  {id:'harrisonlorenz',            pw:'Tw1rlydude22!'},
-  {id:'Harrison.lorenz@gmail.com', pw:'Tw1rlydude22!'},
-  {id:'joshlee',                   pw:'tarballusa'},
-  {id:'jlee@nmusd.us',             pw:'tarballusa'},
-];
-
-function checkLogin(id, pw) {
-  return CREDENTIALS.some(c => c.id === id.trim() && c.pw === pw);
-}
-
-let isLoggedIn = sessionStorage.getItem('nhhs_auth') === '1';
+// ── FIREBASE AUTH (no passwords in code) ────────────────────
+let isLoggedIn = false;
 
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-if (isLoggedIn) showView('view-app'); else showView('view-login');
+firebase.auth().onAuthStateChanged(user => {
+  if (user) {
+    isLoggedIn = true;
+    showView('view-app');
+    waitForDB(() => renderRoster());
+  } else {
+    isLoggedIn = false;
+    showView('view-login');
+  }
+});
 
 document.getElementById('login-btn').addEventListener('click', doLogin);
 document.getElementById('login-pw').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('login-id').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pw').focus(); });
 
 function doLogin() {
-  const id = document.getElementById('login-id').value;
+  const id = document.getElementById('login-id').value.trim();
   const pw = document.getElementById('login-pw').value;
   const err = document.getElementById('login-err');
-  if (checkLogin(id, pw)) {
-    sessionStorage.setItem('nhhs_auth','1');
-    isLoggedIn = true;
-    err.classList.remove('show');
-    showView('view-app');
-    waitForDB(() => renderRoster());
-  } else {
-    err.classList.add('show');
-  }
+  const usernameMap = {
+    'jamesyjlee': 'jamesyjlee@gmail.com',
+    'harrisonlorenz': 'Harrison.lorenz@gmail.com',
+    'joshlee': 'jlee@nmusd.us',
+  };
+  const email = usernameMap[id] || id;
+  err.classList.remove('show');
+  document.getElementById('login-btn').textContent = 'SIGNING IN...';
+  firebase.auth().signInWithEmailAndPassword(email, pw)
+    .then(() => { document.getElementById('login-btn').textContent = 'SIGN IN'; })
+    .catch(() => {
+      document.getElementById('login-btn').textContent = 'SIGN IN';
+      err.classList.add('show');
+    });
 }
 
 document.getElementById('logout-btn').addEventListener('click', () => {
-  sessionStorage.removeItem('nhhs_auth');
-  showView('view-login');
+  firebase.auth().signOut();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -948,6 +968,34 @@ let activePitcherId = null;
 let activeGameSession = null; // {date, opponent, batters:[]}
 let activeLogPitchFilter = 'ALL';
 let activeProfilePitchFilter = 'ALL';
+let heatmapHandFilter = 'ALL'; // 'ALL', 'R', or 'L'
+
+window.setHeatmapHand = function(hand) {
+  heatmapHandFilter = hand;
+  ['all','r','l'].forEach(h => {
+    const btn = document.getElementById('hm-hand-'+h);
+    if (btn) btn.classList.toggle('active', 'hm-hand-'+h === 'hm-hand-'+hand.toLowerCase());
+  });
+  // Re-render just the heatmap with filtered pitches
+  const pitcher = DB.pitchers.find(p => p.id === activePitcherId);
+  if (!pitcher) return;
+  const allP = getAllPitches(pitcher, activeProfilePitchFilter);
+  const filtered = heatmapHandFilter === 'ALL' ? allP : allP.filter(p => {
+    // Match based on what handedness the pitch was thrown to
+    const raw = pitcher.games.flatMap(g=>(g.batters||[]).flatMap(b=>(b.pitches||[]).map(pitch=>({...pitch,parsed:parseCode(pitch.code,pitch.hand)}))));
+    return true; // will filter below
+  });
+  // Better: filter raw pitches by batter handedness
+  const rawFiltered = pitcher.games.flatMap(g=>(g.batters||[])
+    .filter(b => heatmapHandFilter==='ALL' || (b.handedness||'R')[0].toUpperCase()===heatmapHandFilter)
+    .flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code, b.handedness)))).filter(Boolean);
+  const pitchTypeFilter = activeProfilePitchFilter;
+  const finalFiltered = pitchTypeFilter==='ALL' ? rawFiltered : rawFiltered.filter(p=>p.pitchType===pitchTypeFilter);
+  const zoneCounts = {};
+  ['1B','3B','2B','4B','1S','3S','2S','4S','0S','0B'].forEach(z=>zoneCounts[z]=0);
+  finalFiltered.forEach(p=>{ if(zoneCounts[p.zone]!==undefined) zoneCounts[p.zone]++; });
+  drawHeatmap(document.getElementById('prof-heatmap'), zoneCounts);
+};
 
 // ═══════════════════════════════════════════════════════════════
 // CODE PARSER
@@ -1298,12 +1346,31 @@ function renderRoster() {
   DB = loadData();
   const grid = document.getElementById('pitcher-grid');
   const empty = document.getElementById('empty-roster');
-  // clear cards
   [...grid.children].forEach(c=>{ if(c!==empty) c.remove(); });
-  empty.style.display = DB.pitchers.length ? 'none' : '';
 
-  (DB.pitchers||[]).forEach(pitcher=>{
-    if(!pitcher||!pitcher.id) return;
+  const searchEl = document.getElementById('roster-search');
+  const sortEl = document.getElementById('roster-sort');
+  const query = searchEl ? searchEl.value.toLowerCase() : '';
+  const sort = sortEl ? sortEl.value : 'alpha';
+
+  let pitchers = (DB.pitchers||[]).filter(p=>p&&p.id);
+  // Search
+  if (query) pitchers = pitchers.filter(p =>
+    p.name.toLowerCase().includes(query) || (p.team||'').toLowerCase().includes(query)
+  );
+  // Sort
+  if (sort === 'alpha') pitchers.sort((a,b)=>a.name.localeCompare(b.name));
+  else if (sort === 'team') pitchers.sort((a,b)=>(a.team||'').localeCompare(b.team||'') || a.name.localeCompare(b.name));
+  else if (sort === 'added') pitchers.sort((a,b)=>(a.id||0)-(b.id||0));
+  else if (sort === 'recent') pitchers.sort((a,b)=>{
+    const aLast = (a.games||[]).length ? (a.games||[])[(a.games||[]).length-1].date||'' : '';
+    const bLast = (b.games||[]).length ? (b.games||[])[(b.games||[]).length-1].date||'' : '';
+    return bLast.localeCompare(aLast);
+  });
+
+  empty.style.display = pitchers.length ? 'none' : '';
+
+  pitchers.forEach(pitcher=>{
     const allParsed = getAllPitches(pitcher);
     const stats = computeStats(allParsed);
     const card = document.createElement('div');
@@ -1386,7 +1453,7 @@ function renderProfileStats(pitcher, filterType) {
     <div class="sum-stat"><span class="sum-val">${filtered.length?(stats.strikeP*100).toFixed(0)+'%':'—'}</span><span class="sum-lbl">Strike%</span></div>
     <div class="sum-stat"><span class="sum-val">${stats.avgVelo>0?stats.avgVelo.toFixed(1):'—'}</span><span class="sum-lbl">Avg Velo</span></div>
     <div class="sum-stat"><span class="sum-val">${stats.maxVelo||'—'}</span><span class="sum-lbl">Max Velo</span></div>
-    <div class="sum-stat"><span class="sum-val">${stats.avgVelo50>0?stats.avgVelo50.toFixed(1):'—'}</span><span class="sum-lbl">Avg Velo 50+</span></div>
+
     <div class="sum-stat"><span class="sum-val">${filtered.length}</span><span class="sum-lbl">Pitches</span></div>
   `;
 
@@ -1422,6 +1489,22 @@ function renderProfileStats(pitcher, filterType) {
       <span class="stat-row-val">${(pct*100).toFixed(0)}%</span></div></div>`;
   }).join('');
 
+  // Avg FB velo after 50 per game
+  const fbAfter50GameAvgs2=(pitcher.games||[]).map(game=>{
+    const gp=(game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const after50=gp.slice(50).filter(p=>p.pitchType==='FB'&&p.velo&&p.velo>0).map(p=>p.velo);
+    return after50.length?after50.reduce((a,b)=>a+b,0)/after50.length:null;
+  }).filter(v=>v!==null);
+  const avgFbAfter50Profile=fbAfter50GameAvgs2.length?fbAfter50GameAvgs2.reduce((a,b)=>a+b,0)/fbAfter50GameAvgs2.length:0;
+
+  const veloBlock = filterType==='ALL' ? '' : `
+    <div class="stat-block">
+      <div class="stat-block-title">Velocity</div>
+      <div class="stat-row"><span class="stat-row-lbl">Avg Velocity</span><span class="stat-row-val">${stats.avgVelo>0?stats.avgVelo.toFixed(1)+' mph':'—'}</span></div>
+      <div class="stat-row"><span class="stat-row-lbl">Max Velocity</span><span class="stat-row-val">${stats.maxVelo?stats.maxVelo+' mph':'—'}</span></div>
+      <div class="stat-row"><span class="stat-row-lbl">Avg Velo 50+</span><span class="stat-row-val">${avgFbAfter50Profile>0?avgFbAfter50Profile.toFixed(1)+' mph':'—'}</span></div>
+    </div>`;
+
   col.innerHTML=`
     <div class="stat-block">
       <div class="stat-block-title">Strike Rate</div>
@@ -1430,12 +1513,7 @@ function renderProfileStats(pitcher, filterType) {
         <span class="stat-row-val">${filtered.length?((stats.strikeP*100).toFixed(1)+'%'):'—'}</span></div></div>
       <div class="stat-row"><span class="stat-row-lbl">Strikes / Balls</span><span class="stat-row-val">${stats.strikes} / ${filtered.length-stats.strikes}</span></div>
     </div>
-    <div class="stat-block">
-      <div class="stat-block-title">Velocity</div>
-      <div class="stat-row"><span class="stat-row-lbl">Avg Velocity</span><span class="stat-row-val">${stats.avgVelo>0?stats.avgVelo.toFixed(1)+' mph':'—'}</span></div>
-      <div class="stat-row"><span class="stat-row-lbl">Max Velocity</span><span class="stat-row-val">${stats.maxVelo?stats.maxVelo+' mph':'—'}</span></div>
-      <div class="stat-row"><span class="stat-row-lbl">Avg Velo (50+ pitches)</span><span class="stat-row-val">${stats.avgVelo50>0?stats.avgVelo50.toFixed(1)+' mph':'—'}</span></div>
-    </div>
+    ${veloBlock}
     <div class="stat-block">
       <div class="stat-block-title">Zone Control</div>
       <div class="stat-row"><span class="stat-row-lbl">In Zone %</span>
@@ -1611,7 +1689,8 @@ function drawVeloBarChart(canvasId, veloByType) {
   const pad={l:40,r:16,t:16,b:36};
   const chartW=W-pad.l-pad.r, chartH=H-pad.t-pad.b;
   const maxV=Math.max(...entries.map(([,v])=>v));
-  const minV=Math.min(...entries.map(([,v])=>v));
+  const absMin=Math.max(0, Math.min(...entries.map(([,v])=>v)) - 8);
+  const minV=absMin; // absolute baseline so lowest bar is still visible
   const vRange=maxV-minV||10;
   const barW=chartW/entries.length*0.55;
   const gap=chartW/entries.length;
@@ -2152,20 +2231,59 @@ async function exportPPTX(pitcher) {
   s7.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
 
   const vL=[],vV=[],vC=[];
-  ['FB','CB','SL','CH'].forEach(t=>{if(veloData[t]){vL.push(pTypeNames[t]);vV.push(parseFloat(veloData[t].toFixed(1)));vC.push(PCOLORS[t]);}});
+  ['FB','CB','SL','CH'].forEach(t=>{if(veloData[t]){vL.push(t);vV.push(parseFloat(veloData[t].toFixed(1)));vC.push('#'+PCOLORS[t]);}});
   if(vL.length){
     s7.addText('Average velocity by pitch type (mph)',{x:0.45,y:0.68,w:9.2,h:0.22,fontSize:9,color:DIM,fontFace:'Courier New'});
-    s7.addChart(pres.charts.BAR,[{name:'Avg Velo',labels:vL,values:vV}],{
-      x:0.45,y:0.92,w:9.2,h:3.6,barDir:'col',chartColors:vC,
-      showValue:true,dataLabelFontSize:16,dataLabelColor:WHITE,dataLabelFontBold:true,dataLabelPosition:'outEnd',showLegend:false,
-      valAxisMinVal:vV.length?Math.max(0,Math.min(...vV)-5):0,
-      valAxisMaxVal:vV.length?Math.max(...vV)+5:100,
-      catAxisLabelColor:WHITE,valAxisLabelColor:WHITE,catAxisLabelFontSize:14,valAxisLabelFontSize:11,
-      catAxisLabelFontBold:true,
-      valGridLine:{color:'253047',size:1},catGridLine:{style:'none'},
-      chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:'161b25'}},
-      showCatAxisTitle:false,showValAxisTitle:false,
+    // Render bar chart to hi-res canvas for PPTX
+    const veloCanvas=document.createElement('canvas');
+    const scale4=3;
+    veloCanvas.width=900*scale4; veloCanvas.height=360*scale4;
+    veloCanvas.style.width='900px'; veloCanvas.style.height='360px';
+    document.body.appendChild(veloCanvas);
+    const vctx=veloCanvas.getContext('2d');
+    vctx.scale(scale4,scale4);
+    const VW=900,VH=360;
+    vctx.fillStyle='#161b25'; vctx.fillRect(0,0,VW,VH);
+    const vPad={l:60,r:20,t:30,b:50};
+    const vChartW=VW-vPad.l-vPad.r, vChartH=VH-vPad.t-vPad.b;
+    const vMaxV=Math.max(...vV);
+    const vMinV=Math.max(0,Math.min(...vV)-8);
+    const vRange=vMaxV-vMinV||10;
+    const vBarW=vChartW/vV.length*0.5;
+    const vGap=vChartW/vV.length;
+    // Grid lines
+    [0,.25,.5,.75,1].forEach(t=>{
+      const y=vPad.t+vChartH*(1-t);
+      const label=(vMinV+vRange*t).toFixed(0);
+      vctx.strokeStyle='rgba(37,48,71,.8)'; vctx.lineWidth=1;
+      vctx.beginPath(); vctx.moveTo(vPad.l,y); vctx.lineTo(VW-vPad.r,y); vctx.stroke();
+      vctx.fillStyle='rgba(122,130,153,.7)'; vctx.font="bold 14px 'Arial',monospace";
+      vctx.textAlign='right'; vctx.textBaseline='middle';
+      vctx.fillText(label,vPad.l-6,y);
     });
+    vV.forEach((velo,i)=>{
+      const barH=((velo-vMinV)/vRange)*vChartH;
+      const x=vPad.l+vGap*i+vGap/2-vBarW/2;
+      const y=vPad.t+vChartH-barH;
+      const grad=vctx.createLinearGradient(x,y,x,y+barH);
+      grad.addColorStop(0,vC[i]); grad.addColorStop(1,vC[i]+'55');
+      vctx.fillStyle=grad;
+      vctx.beginPath();
+      if(vctx.roundRect) vctx.roundRect(x,y,vBarW,barH,6);
+      else vctx.rect(x,y,vBarW,barH);
+      vctx.fill();
+      // Type label
+      vctx.fillStyle='rgba(173,181,204,.9)'; vctx.font="bold 16px Arial";
+      vctx.textAlign='center'; vctx.textBaseline='top';
+      vctx.fillText(vL[i],x+vBarW/2,vPad.t+vChartH+8);
+      // Value
+      vctx.fillStyle='rgba(232,234,240,.95)'; vctx.font="bold 16px 'Courier New'";
+      vctx.textAlign='center'; vctx.textBaseline='bottom';
+      vctx.fillText(velo.toFixed(1),x+vBarW/2,y-4);
+    });
+    const veloImgB64=veloCanvas.toDataURL('image/png').split(',')[1];
+    document.body.removeChild(veloCanvas);
+    s7.addImage({data:'image/png;base64,'+veloImgB64,x:0.45,y:0.92,w:9.2,h:3.6});
   }
   // Two stats only: Max Velo + Avg FB velo after 50
   const veloStats=[
@@ -2183,6 +2301,84 @@ async function exportPPTX(pitcher) {
   const fileName=pitcher.name.replace(/\s+/g,'-')+'_Scouting_Report.pptx';
   await pres.writeFile({fileName});
   toast('PPTX downloaded!','ok');
+}
+
+document.getElementById('prof-print-btn').addEventListener('click',()=>{
+  const pitcher=DB.pitchers.find(p=>p.id===activePitcherId);
+  if(!pitcher) return;
+  printPitcherReport(pitcher);
+});
+
+function printPitcherReport(pitcher) {
+  const allPitches=getAllPitches(pitcher);
+  const stats=computeStats(allPitches);
+  const hmCanvas=document.getElementById('prof-heatmap');
+  const hmImg=hmCanvas.toDataURL('image/png');
+  const gameRows=(pitcher.games||[]).map(game=>{
+    const gp=(game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const t=gp.length,s=gp.filter(p=>p.isStrike).length;
+    const va=gp.map(p=>p.velo).filter(v=>v&&v>0);
+    const av=va.length?va.reduce((a,b)=>a+b,0)/va.length:0;
+    const fb=gp.filter(p=>p.pitchType==='FB').length;
+    return `<tr><td>${formatDate(game.date)}${game.opponent?' — '+game.opponent:''}</td><td>${t}</td><td>${t?((s/t*100).toFixed(1)+'%'):'—'}</td><td>${av>0?av.toFixed(1)+' mph':'—'}</td><td>${t?((fb/t*100).toFixed(0)+'%'):'—'}</td></tr>`;
+  }).join('');
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>${pitcher.name} — Scouting Report</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;padding:32px;color:#111;max-width:900px;margin:0 auto;font-size:13px}
+    h1{font-size:32px;font-weight:900;letter-spacing:3px;text-transform:uppercase;margin-bottom:2px}
+    .sub{color:#888;font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+    .gold-bar{height:3px;background:#c8a84b;margin-bottom:20px;width:100%}
+    .notes-box{border:1px solid #ddd;border-radius:4px;padding:12px;min-height:80px;margin-bottom:20px}
+    .notes-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:6px}
+    .layout{display:flex;gap:24px;margin-bottom:20px}
+    .hm-wrap{flex-shrink:0}
+    .hm-wrap img{width:280px;height:280px;display:block}
+    .stats-wrap{flex:1}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+    th{text-align:left;padding:6px 8px;border-bottom:2px solid #111;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#666}
+    td{padding:7px 8px;border-bottom:1px solid #eee}
+    tr:last-child td{border-bottom:none}
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    .stat-box{background:#f7f7f7;border-radius:4px;padding:10px 14px}
+    .stat-val{font-size:20px;font-weight:700}
+    .stat-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-top:2px}
+    h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#666;border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:8px;margin-top:16px}
+    @media print{body{padding:16px}}
+  </style></head><body>
+  <h1>${pitcher.name}</h1>
+  <div class="sub">${pitcher.team||''} · NHHS Baseball · 2025–26</div>
+  <div class="gold-bar"></div>
+  <div class="notes-label">Scout Notes</div>
+  <div class="notes-box"></div>
+  <div class="layout">
+    <div class="hm-wrap">
+      <h2>Heat Map</h2>
+      <img src="${hmImg}" alt="Heat Map"/>
+    </div>
+    <div class="stats-wrap">
+      <h2>Summary</h2>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val">${allPitches.length?(stats.strikeP*100).toFixed(0)+'%':'—'}</div><div class="stat-lbl">Strike %</div></div>
+        <div class="stat-box"><div class="stat-val">${stats.avgVelo>0?stats.avgVelo.toFixed(1):'—'}</div><div class="stat-lbl">Avg Velo</div></div>
+        <div class="stat-box"><div class="stat-val">${stats.maxVelo||'—'}</div><div class="stat-lbl">Max Velo</div></div>
+        <div class="stat-box"><div class="stat-val">${allPitches.length}</div><div class="stat-lbl">Pitches</div></div>
+      </div>
+      <h2>Pitch Mix</h2>
+      ${Object.entries(stats.pitchMix).sort((a,b)=>b[1]-a[1]).map(([t,cnt])=>{
+        const pct=stats.total?(cnt/stats.total*100).toFixed(0):'0';
+        const key=Object.keys(PITCH_MAP).find(k=>PITCH_MAP[k]===t);
+        return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee"><span>'+PITCH_NAMES[key]+'</span><strong>'+pct+'%</strong></div>';
+      }).join('')}
+    </div>
+  </div>
+  <h2>Game Log</h2>
+  <table><thead><tr><th>Date / Opponent</th><th>Pitches</th><th>Strike%</th><th>Avg Velo</th><th>FB%</th></tr></thead>
+  <tbody>${gameRows}</tbody></table>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 document.getElementById('prof-export-pdf').addEventListener('click',()=>{
@@ -2322,7 +2518,7 @@ function renderBatterList() {
         <div class="batter-num">${idx+1}</div>
         <div class="batter-meta">
           <div class="batter-hand">${batter.handedness==='L'?'LEFT-HANDED':'RIGHT-HANDED'}</div>
-          <div class="batter-count">${cnt} pitch${cnt!==1?'es':''}${cnt?` · ${sk}K ${cnt-sk}B`:''}${isActive&&!isDone?' · <span style="color:var(--gold2)">'+liveCurrentCount+'</span>':''}</div>
+          <div class="batter-count">${cnt} pitch${cnt!==1?'es':''}${cnt?` · ${sk}S ${cnt-sk}B`:''}${isActive&&!isDone?' · <span style="color:var(--gold2)">'+liveCurrentCount+'</span>':''}</div>
           <div class="pitch-seq batter-pitches-preview">${seqChips}</div>
         </div>
         ${statusBadge}
@@ -2347,7 +2543,7 @@ function renderBatterList() {
           <thead><tr><th>#</th><th>Type</th><th>Strike?</th><th>Zone</th><th>Velo</th><th>Count</th></tr></thead>
           <tbody>${tableRows}</tbody>
         </table>`:'<p style="color:var(--dim);font-size:12px;padding:10px 0;font-family:var(--font-m)">No pitches logged yet.</p>'}
-        ${!isDone?`<button onclick="endAtBat(${idx})" style="margin-top:12px;width:100%;padding:10px;border-radius:var(--r);border:1px solid rgba(76,175,130,.4);background:rgba(76,175,130,.08);color:var(--green);font-family:var(--font-m);font-size:12px;letter-spacing:1px;cursor:pointer">✓ End At-Bat</button>`:''}
+        ${!isDone?`<button onclick="endAtBat(${idx})" style="margin-top:12px;width:100%;padding:10px;border-radius:var(--r);border:1px solid rgba(76,175,130,.4);background:rgba(76,175,130,.08);color:var(--green);font-family:var(--font-m);font-size:12px;letter-spacing:1px;cursor:pointer">✓ End At-Bat <span style=\"font-size:10px;opacity:.6\">[Space]</span></button>`:''}
       </div>
     `;
 
@@ -2387,6 +2583,23 @@ window.reopenAtBat=function(idx){
   },100);
 };
 
+// Auto-save current game session to Firebase so nothing is lost
+function autoSaveSession() {
+  if (!activePitcherId || !activeGameSession) return;
+  DB = loadData();
+  const pitcher = DB.pitchers.find(p => p.id === activePitcherId);
+  if (!pitcher) return;
+  // Update or insert the active session as a draft
+  const draftIdx = (pitcher.games||[]).findIndex(g => g.id === activeGameSession.id);
+  if (draftIdx >= 0) {
+    pitcher.games[draftIdx] = {...activeGameSession, isDraft: true};
+  } else {
+    if (!pitcher.games) pitcher.games = [];
+    pitcher.games.push({...activeGameSession, isDraft: true});
+  }
+  saveData(DB);
+}
+
 window.endAtBat=function(idx){
   const batter=activeGameSession.batters[idx];
   if(!batter) return;
@@ -2423,7 +2636,7 @@ function previewCode(idx) {
   if(!p){parsed.innerHTML='<span style="color:var(--red)">Invalid code</span>';return;}
   const countAfter=nextCount(liveCurrentCount,p.isStrike);
   const resultColor = p.isChase ? '#ffaa33' : p.isStrike ? 'var(--green)' : 'var(--red)';
-  const resultWord  = p.isChase ? 'CHASE (K in count, Ball on map)' : p.isMidBall ? 'UMP MISS (0B)' : p.isStrike ? 'STRIKE' : 'BALL';
+  const resultWord  = p.isChase ? 'CHASE (S in count, Ball on map)' : p.isMidBall ? 'UMP MISS (0B)' : p.isStrike ? 'STRIKE' : 'BALL';
   parsed.innerHTML=`<span class="count-label">${liveCurrentCount}</span> → <strong style="color:${resultColor}">${resultWord}</strong> · <span style="color:${PITCH_COLORS[p.pitchType]}">${p.pitchName}</span> · ${p.locLabel} · ${p.velo||'?'} mph → <span class="count-label">${countAfter}</span>`;
 }
 
@@ -2446,6 +2659,7 @@ window.logPitch = function(idx) {
   renderBatterList();
   renderLiveHeatmap();
   renderLiveStats();
+  autoSaveSession();
   document.getElementById(`code-input-${idx}`)?.focus();
   toast(`${p.pitchName} ${p.isStrike?'Strike':'Ball'} — ${countBefore} → ${countAfter}`,'ok');
 };
@@ -2578,12 +2792,7 @@ document.getElementById('modal-code-key').addEventListener('click',e=>{
     document.getElementById('modal-code-key').classList.remove('open');
 });
 
-if(isLoggedIn) {
-  waitForDB(() => renderRoster());
-} else {
-  // Pre-load data so it is ready when user logs in
-  waitForDB(() => {});
-}
+// Auth state handled by firebase.auth().onAuthStateChanged above
 </script>
 </body>
 </html>

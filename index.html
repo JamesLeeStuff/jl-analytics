@@ -753,17 +753,20 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
       <!-- Digit 1: Pitch Type -->
       <div class="stat-block">
         <div class="stat-block-title" style="color:var(--gold)">Digit 1 — Pitch Type</div>
-        ${['1 = Fastball (FB)','2 = Curveball (CB)','3 = Slider (SL)','4 = Changeup (CH)'].map(r=>`
-          <div class="stat-row"><span class="stat-row-lbl">${r.split('=')[0].trim()}</span><span class="stat-row-val">${r.split('=')[1].trim()}</span></div>
-        `).join('')}
+        <div class="stat-row"><span class="stat-row-lbl">1</span><span class="stat-row-val">Fastball (FB)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">2</span><span class="stat-row-val">Curveball (CB)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">3</span><span class="stat-row-val">Slider (SL)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">4</span><span class="stat-row-val">Changeup (CH)</span></div>
       </div>
 
       <!-- Digit 2: Location -->
       <div class="stat-block">
         <div class="stat-block-title" style="color:#9fa8ff">Digit 2 — Location (RHH view)</div>
-        ${['1 = Upper Inside','2 = Lower Inside','3 = Upper Outside','4 = Lower Outside','0 = Middle Middle'].map(r=>`
-          <div class="stat-row"><span class="stat-row-lbl">${r.split('=')[0].trim()}</span><span class="stat-row-val">${r.split('=')[1].trim()}</span></div>
-        `).join('')}
+        <div class="stat-row"><span class="stat-row-lbl">1</span><span class="stat-row-val">Upper Inside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">2</span><span class="stat-row-val">Lower Inside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">3</span><span class="stat-row-val">Upper Outside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">4</span><span class="stat-row-val">Lower Outside</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">0</span><span class="stat-row-val">Middle Middle</span></div>
         <div style="margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim)">For left-handed hitters, inside/outside flips automatically.</div>
       </div>
 
@@ -786,22 +789,33 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
       </div>
     </div>
 
-    <!-- Quick reference grid -->
+    <!-- Quick reference -->
     <div class="stat-block" style="margin-top:16px">
       <div class="stat-block-title">Quick Reference Examples</div>
-      ${[
-        ['11S90','Fastball · Upper Inside · Strike · 90 mph'],
-        ['13B85','Fastball · Upper Outside · Ball · 85 mph'],
-        ['24S78','Curveball · Lower Outside · Strike · 78 mph'],
-        ['32C83','Slider · Lower Inside · Chase · 83 mph'],
-        ['10B88','Fastball · Middle Middle · Ball (ump miss) · 88 mph'],
-        ['41S76','Changeup · Upper Inside · Strike · 76 mph'],
-      ].map(([code,desc])=>`
-        <div class="stat-row">
-          <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">${code}</span>
-          <span class="stat-row-lbl" style="font-size:12px">${desc}</span>
-        </div>
-      `).join('')}
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">11S90</span>
+        <span class="stat-row-lbl" style="font-size:12px">Fastball · Upper Inside · Strike · 90 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">13B85</span>
+        <span class="stat-row-lbl" style="font-size:12px">Fastball · Upper Outside · Ball · 85 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">24S78</span>
+        <span class="stat-row-lbl" style="font-size:12px">Curveball · Lower Outside · Strike · 78 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:#ffaa33;letter-spacing:2px;min-width:80px">32C83</span>
+        <span class="stat-row-lbl" style="font-size:12px">Slider · Lower Inside · Chase · 83 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:#5b8dee;letter-spacing:2px;min-width:80px">10B88</span>
+        <span class="stat-row-lbl" style="font-size:12px">Fastball · Middle Middle · Ball (ump miss) · 88 mph</span>
+      </div>
+      <div class="stat-row">
+        <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">41S76</span>
+        <span class="stat-row-lbl" style="font-size:12px">Changeup · Upper Inside · Strike · 76 mph</span>
+      </div>
     </div>
 
   </div>

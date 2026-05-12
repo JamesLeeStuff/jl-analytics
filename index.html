@@ -4,10 +4,23 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>NHHS Baseball — Pitching Intelligence</title>
-<!-- Firebase -->
+<!-- Firebase SDKs — must load before any JS runs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+// Initialize Firebase immediately so it is ready before any other script runs
+const _fbConfig = {
+  apiKey: "AIzaSyB-u-vkSUPaTJ1PjOrDTDsi4_ij5PZhYa8",
+  authDomain: "nhhs-baseball.firebaseapp.com",
+  databaseURL: "https://nhhs-baseball-default-rtdb.firebaseio.com",
+  projectId: "nhhs-baseball",
+  storageBucket: "nhhs-baseball.firebasestorage.app",
+  messagingSenderId: "848608658556",
+  appId: "1:848608658556:web:6e325ac8529711251a35f9"
+};
+if (!firebase.apps.length) { firebase.initializeApp(_fbConfig); }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -918,18 +931,8 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// FIREBASE — real-time shared database
+// FIREBASE — real-time shared database (initialized in <head>)
 // ═══════════════════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey: "AIzaSyB-u-vkSUPaTJ1PjOrDTDsi4_ij5PZhYa8",
-  authDomain: "nhhs-baseball.firebaseapp.com",
-  databaseURL: "https://nhhs-baseball-default-rtdb.firebaseio.com",
-  projectId: "nhhs-baseball",
-  storageBucket: "nhhs-baseball.firebasestorage.app",
-  messagingSenderId: "848608658556",
-  appId: "1:848608658556:web:6e325ac8529711251a35f9"
-};
-if(!firebase.apps.length){ firebase.initializeApp(firebaseConfig); }
 const fbDB = firebase.database();
 const DB_REF = fbDB.ref('nhhs_data');
 

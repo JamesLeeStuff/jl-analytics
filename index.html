@@ -781,7 +781,22 @@ let DB = {pitchers:[]};
 // Listen for real-time updates from any user
 DB_REF.on('value', snapshot => {
   const val = snapshot.val();
-  DB = (val && val.pitchers) ? val : {pitchers:[]};
+  if (val && val.pitchers) {
+    // Firebase strips empty arrays — restore them on every pitcher/game/batter
+    val.pitchers = Object.values(val.pitchers||{}).map(p => ({
+      ...p,
+      games: Object.values(p.games||{}).map(g => ({
+        ...g,
+        batters: Object.values(g.batters||{}).map(b => ({
+          ...b,
+          pitches: Object.values(b.pitches||{})
+        }))
+      }))
+    }));
+    DB = val;
+  } else {
+    DB = {pitchers:[]};
+  }
   if (document.getElementById('page-roster').classList.contains('active')) {
     renderRoster();
   }
@@ -800,7 +815,21 @@ function saveData(d) {
 function waitForDB(callback) {
   DB_REF.once('value', snapshot => {
     const val = snapshot.val();
-    DB = (val && val.pitchers) ? val : {pitchers:[]};
+    if (val && val.pitchers) {
+      val.pitchers = Object.values(val.pitchers||{}).map(p => ({
+        ...p,
+        games: Object.values(p.games||{}).map(g => ({
+          ...g,
+          batters: Object.values(g.batters||{}).map(b => ({
+            ...b,
+            pitches: Object.values(b.pitches||{})
+          }))
+        }))
+      }));
+      DB = val;
+    } else {
+      DB = {pitchers:[]};
+    }
     callback();
   });
 }
@@ -879,7 +908,7 @@ function nextCount(prevCount, isStrike) {
 const ZONES = ['1B','3B','2B','4B','1S','3S','2S','4S','0S','0B'];
 
 function getAllPitches(pitcher, filterType='ALL') {
-  const raw = pitcher.games.flatMap(g => g.batters.flatMap(b => b.pitches));
+  const raw = (pitcher.games||[]).flatMap(g => (g.batters||[]).flatMap(b => (b.pitches||[])));
   const parsed = raw.map(p => parseCode(p.code, p.hand)).filter(Boolean);
   return filterType === 'ALL' ? parsed : parsed.filter(p => p.pitchType === filterType);
 }
@@ -1546,7 +1575,7 @@ function renderAllCharts(pitcher) {
   drawPieChart('chart-two-strike','legend-two-strike', buckets.twoStrike);
 
   // FPS% charts — first pitch of each at-bat
-  const firstPitches = pitcher.games.flatMap(g =>
+  const firstPitches = (pitcher.games||[]).flatMap(g =>
     g.batters.map(b => b.pitches[0] ? {p: parseCode(b.pitches[0].code, b.pitches[0].hand)} : null)
   ).filter(Boolean).map(x=>x.p).filter(Boolean);
 
@@ -1578,7 +1607,7 @@ function renderProfileGames(pitcher) {
   }
   [...pitcher.games].reverse().forEach(game=>{
     // Compute quick stats for this game
-    const allP = game.batters.flatMap(b=>b.pitches.map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const allP = (game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
     const total=allP.length, strikes=allP.filter(p=>p.isStrike).length;
     const veloArr=allP.map(p=>p.velo).filter(v=>v&&v>0);
     const avgVelo=veloArr.length?veloArr.reduce((a,b)=>a+b,0)/veloArr.length:0;

@@ -497,6 +497,7 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
     <div class="topbar-nav">
       <button class="nav-btn active" data-page="roster">Roster</button>
       <button class="nav-btn" data-page="log" id="nav-log" style="display:none">Live Log</button>
+      <button class="nav-btn" id="nav-code-key">Code Key</button>
     </div>
     <button class="topbar-logout" id="logout-btn">Sign Out</button>
   </div>
@@ -709,6 +710,102 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- Code Key Modal -->
+<div class="modal-overlay" id="modal-code-key">
+  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" id="close-code-key">✕</button>
+    <h3 style="margin-bottom:4px">CODE KEY</h3>
+    <p style="color:var(--dim);font-family:var(--font-m);font-size:11px;letter-spacing:1px;margin-bottom:24px">Each pitch is logged as a 5-character code. Here's how to build one.</p>
+
+    <!-- Format display -->
+    <div style="display:flex;gap:6px;margin-bottom:28px;flex-wrap:wrap">
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--gold);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:var(--gold2);letter-spacing:2px">1</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Pitch Type</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--dim);font-size:20px">+</div>
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--blue);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:#9fa8ff;letter-spacing:2px">1</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Location</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--dim);font-size:20px">+</div>
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--green);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:var(--green);letter-spacing:2px">S</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Result</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--dim);font-size:20px">+</div>
+      <div style="flex:1;min-width:60px;background:var(--surf2);border:2px solid var(--border2);border-radius:8px;padding:14px 10px;text-align:center">
+        <div style="font-family:var(--font-d);font-size:32px;color:var(--text);letter-spacing:2px">90</div>
+        <div style="font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;text-transform:uppercase">Velocity</div>
+      </div>
+    </div>
+
+    <!-- Example -->
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:24px;border-left:3px solid var(--gold)">
+      <div style="font-family:var(--font-m);font-size:10px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Example</div>
+      <div style="font-family:var(--font-d);font-size:36px;color:var(--gold2);letter-spacing:4px">11S90</div>
+      <div style="font-family:var(--font-m);font-size:12px;color:var(--mid);margin-top:6px">Fastball · Upper Inside · Strike · 90 mph</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Digit 1: Pitch Type -->
+      <div class="stat-block">
+        <div class="stat-block-title" style="color:var(--gold)">Digit 1 — Pitch Type</div>
+        ${['1 = Fastball (FB)','2 = Curveball (CB)','3 = Slider (SL)','4 = Changeup (CH)'].map(r=>`
+          <div class="stat-row"><span class="stat-row-lbl">${r.split('=')[0].trim()}</span><span class="stat-row-val">${r.split('=')[1].trim()}</span></div>
+        `).join('')}
+      </div>
+
+      <!-- Digit 2: Location -->
+      <div class="stat-block">
+        <div class="stat-block-title" style="color:#9fa8ff">Digit 2 — Location (RHH view)</div>
+        ${['1 = Upper Inside','2 = Lower Inside','3 = Upper Outside','4 = Lower Outside','0 = Middle Middle'].map(r=>`
+          <div class="stat-row"><span class="stat-row-lbl">${r.split('=')[0].trim()}</span><span class="stat-row-val">${r.split('=')[1].trim()}</span></div>
+        `).join('')}
+        <div style="margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim)">For left-handed hitters, inside/outside flips automatically.</div>
+      </div>
+
+      <!-- Digit 3: Result -->
+      <div class="stat-block">
+        <div class="stat-block-title" style="color:var(--green)">Digit 3 — Result</div>
+        <div class="stat-row"><span class="stat-row-lbl">S</span><span class="stat-row-val" style="color:var(--green)">Strike (called or swinging)</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">B</span><span class="stat-row-val" style="color:var(--red)">Ball</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">C</span><span class="stat-row-val" style="color:#ffaa33">Chase — swung at a ball. Counts as a strike in the count but plots in the ball zone on the heat map.</span></div>
+        <div style="margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim)">Special: use <strong style="color:var(--text)">0B</strong> (digit 2 = 0, digit 3 = B) for a middle-middle pitch the ump missed.</div>
+      </div>
+
+      <!-- Digits 4-5: Velocity -->
+      <div class="stat-block">
+        <div class="stat-block-title">Digits 4–5 — Velocity (mph)</div>
+        <div class="stat-row"><span class="stat-row-lbl">90</span><span class="stat-row-val">90 mph</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">85</span><span class="stat-row-val">85 mph</span></div>
+        <div class="stat-row"><span class="stat-row-lbl">78</span><span class="stat-row-val">78 mph</span></div>
+        <div style="margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim)">Always two digits. Use the last two digits of the speed — e.g. 92 mph = <strong style="color:var(--text)">92</strong>.</div>
+      </div>
+    </div>
+
+    <!-- Quick reference grid -->
+    <div class="stat-block" style="margin-top:16px">
+      <div class="stat-block-title">Quick Reference Examples</div>
+      ${[
+        ['11S90','Fastball · Upper Inside · Strike · 90 mph'],
+        ['13B85','Fastball · Upper Outside · Ball · 85 mph'],
+        ['24S78','Curveball · Lower Outside · Strike · 78 mph'],
+        ['32C83','Slider · Lower Inside · Chase · 83 mph'],
+        ['10B88','Fastball · Middle Middle · Ball (ump miss) · 88 mph'],
+        ['41S76','Changeup · Upper Inside · Strike · 76 mph'],
+      ].map(([code,desc])=>`
+        <div class="stat-row">
+          <span style="font-family:var(--font-d);font-size:18px;color:var(--gold2);letter-spacing:2px;min-width:80px">${code}</span>
+          <span class="stat-row-lbl" style="font-size:12px">${desc}</span>
+        </div>
+      `).join('')}
+    </div>
+
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -2455,6 +2552,18 @@ function toast(msg,type='') {
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
+// Code Key modal
+document.getElementById('nav-code-key').addEventListener('click',()=>{
+  document.getElementById('modal-code-key').classList.add('open');
+});
+document.getElementById('close-code-key').addEventListener('click',()=>{
+  document.getElementById('modal-code-key').classList.remove('open');
+});
+document.getElementById('modal-code-key').addEventListener('click',e=>{
+  if(e.target===document.getElementById('modal-code-key'))
+    document.getElementById('modal-code-key').classList.remove('open');
+});
+
 if(isLoggedIn) {
   waitForDB(() => renderRoster());
 } else {

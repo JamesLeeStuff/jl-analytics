@@ -1783,10 +1783,13 @@ async function exportPPTX(pitcher) {
   const veloData={};
   ['FB','CB','SL','CH'].forEach(t=>{const arr=allPitches.filter(p=>p.pitchType===t&&p.velo&&p.velo>0).map(p=>p.velo);if(arr.length)veloData[t]=arr.reduce((a,b)=>a+b,0)/arr.length;});
 
-  // Avg FB velo after 50 pitches
-  const allSorted=allPitches.filter(p=>p.velo&&p.velo>0);
-  const fbAfter50=allSorted.slice(50).filter(p=>p.pitchType==='FB').map(p=>p.velo);
-  const avgFbAfter50=fbAfter50.length?fbAfter50.reduce((a,b)=>a+b,0)/fbAfter50.length:0;
+  // Avg FB velo after pitch 50 within each game, then averaged across games
+  const fbAfter50GameAvgs=(pitcher.games||[]).map(game=>{
+    const gp=(game.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,p.hand))).filter(Boolean);
+    const after50=gp.slice(50).filter(p=>p.pitchType==='FB'&&p.velo&&p.velo>0).map(p=>p.velo);
+    return after50.length?after50.reduce((a,b)=>a+b,0)/after50.length:null;
+  }).filter(v=>v!==null);
+  const avgFbAfter50=fbAfter50GameAvgs.length?fbAfter50GameAvgs.reduce((a,b)=>a+b,0)/fbAfter50GameAvgs.length:0;
 
   // Pitch mix summary (FB vs non-FB)
   const fbTotal=allPitches.filter(p=>p.pitchType==='FB').length;
@@ -1915,17 +1918,29 @@ async function exportPPTX(pitcher) {
   // ══════════════════════════════════════════════
   // SLIDE 3 — Heat Map (no zone key, centred)
   // ══════════════════════════════════════════════
+  // Draw hi-res heatmap for PPTX — render at 4x size on a temp canvas
+  const hmHiRes=(()=>{
+    const src=document.getElementById('prof-heatmap');
+    const scale=4;
+    const tmp=document.createElement('canvas');
+    const logW=300, logH=300;
+    tmp.width=logW*scale; tmp.height=logH*scale;
+    const tctx=tmp.getContext('2d');
+    tctx.scale(scale,scale);
+    // Re-draw heatmap onto temp canvas at 4x
+    const allParsedHM=getAllPitches(pitcher,activeProfilePitchFilter);
+    const statsHM=computeStats(allParsedHM);
+    // Use existing drawHeatmap but pointed at temp canvas
+    drawHeatmap(tmp, statsHM.zoneCounts);
+    return tmp.toDataURL('image/png').split(',')[1];
+  })();
+
   const s3=pres.addSlide(); addBg(s3,true);
   s3.addText('PITCH LOCATION HEAT MAP',{x:0.45,y:0.15,w:9.2,h:0.48,fontSize:26,bold:true,color:WHITE,fontFace:'Arial Black',charSpacing:3});
   s3.addShape(pres.shapes.RECTANGLE,{x:0.45,y:0.6,w:9.2,h:0.03,fill:{color:GOLD},line:{color:GOLD}});
   s3.addText("Hitter's POV · All Pitches",{x:0.45,y:0.68,w:9.2,h:0.22,fontSize:9,color:DIM,fontFace:'Courier New'});
-  // Heatmap centred
-  s3.addImage({data:'image/png;base64,'+hmB64,x:2.5,y:0.92,w:4.7,h:4.7});
-  // Pitch mix summary banners flanking the map
-  if(fbPct&&nonFbPct){
-    addSummaryText(s3,fbPct,'fastball usage',0.3,2.3,2.0);
-    addSummaryText(s3,nonFbPct,'non-fastball usage',7.4,2.3,2.2);
-  }
+  // Heatmap large and centred — hi-res version
+  s3.addImage({data:'image/png;base64,'+hmHiRes,x:2.25,y:0.92,w:5.1,h:4.62});
 
   // ══════════════════════════════════════════════
   // SLIDE 4 — First Pitch Tendencies
@@ -2031,11 +2046,14 @@ async function exportPPTX(pitcher) {
     s7.addText('Average velocity by pitch type (mph)',{x:0.45,y:0.68,w:9.2,h:0.22,fontSize:9,color:DIM,fontFace:'Courier New'});
     s7.addChart(pres.charts.BAR,[{name:'Avg Velo',labels:vL,values:vV}],{
       x:0.45,y:0.92,w:9.2,h:3.6,barDir:'col',chartColors:vC,
-      showValue:true,dataLabelFontSize:13,dataLabelColor:WHITE,dataLabelFontBold:true,dataLabelPosition:'outEnd',showLegend:false,
+      showValue:true,dataLabelFontSize:16,dataLabelColor:WHITE,dataLabelFontBold:true,dataLabelPosition:'outEnd',showLegend:false,
       valAxisMinVal:vV.length?Math.max(0,Math.min(...vV)-5):0,
-      catAxisLabelColor:DIM,valAxisLabelColor:DIM,catAxisLabelFontSize:12,valAxisLabelFontSize:10,
-      valGridLine:{color:'1e2738',size:0.5},catGridLine:{style:'none'},
-      chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:SURF}},
+      valAxisMaxVal:vV.length?Math.max(...vV)+5:100,
+      catAxisLabelColor:WHITE,valAxisLabelColor:WHITE,catAxisLabelFontSize:14,valAxisLabelFontSize:11,
+      catAxisLabelFontBold:true,
+      valGridLine:{color:'253047',size:1},catGridLine:{style:'none'},
+      chartArea:{fill:{color:SURF},border:{pt:0}},plotArea:{fill:{color:'161b25'}},
+      showCatAxisTitle:false,showValAxisTitle:false,
     });
   }
   // Two stats only: Max Velo + Avg FB velo after 50
@@ -2197,10 +2215,12 @@ function renderBatterList() {
           <div class="pitch-seq batter-pitches-preview">${seqChips}</div>
         </div>
         ${statusBadge}
-        <span style="color:var(--dim);font-size:12px;margin-left:6px">${isDone||card.classList.contains('open')?'▲':'▼'}</span>
+        <span style="color:var(--dim);font-size:12px;margin-left:6px">▼</span>
       </div>
       <div class="batter-body">
-        ${!isDone?`
+        ${isDone?`
+        <button onclick="reopenAtBat(${idx})" style="margin-top:12px;width:100%;padding:9px;border-radius:var(--r);border:1px solid rgba(200,168,75,.4);background:rgba(200,168,75,.07);color:var(--gold);font-family:var(--font-m);font-size:11px;letter-spacing:1px;cursor:pointer">✎ Reopen At-Bat to Edit</button>
+        `:`
         <div class="hand-toggle" style="margin-top:12px">
           <button class="hand-btn ${batter.handedness!=='L'?'active':''}" onclick="setHand(${idx},'R')">RHH</button>
           <button class="hand-btn ${batter.handedness==='L'?'active':''}" onclick="setHand(${idx},'L')">LHH</button>
@@ -2211,7 +2231,7 @@ function renderBatterList() {
           <button class="btn-undo" onclick="undoPitch(${idx})">Undo</button>
         </div>
         <div class="parsed-pitch" id="parsed-${idx}"><span style="color:var(--dim)">Type a 5-digit code to preview...</span></div>
-        `:''}
+        `}
         ${cnt?`<table class="log-table">
           <thead><tr><th>#</th><th>Type</th><th>Strike?</th><th>Zone</th><th>Velo</th><th>Count</th></tr></thead>
           <tbody>${tableRows}</tbody>
@@ -2239,6 +2259,22 @@ function renderBatterList() {
     list.appendChild(card);
   });
 }
+
+window.reopenAtBat=function(idx){
+  const batter=activeGameSession.batters[idx];
+  if(!batter) return;
+  batter.done=false;
+  activeBatterIdx=idx;
+  liveCurrentCount=getLastCount(batter);
+  renderBatterList();
+  renderLiveHeatmap();
+  renderLiveStats();
+  toast(`At-Bat ${idx+1} reopened — add or undo pitches`,'ok');
+  setTimeout(()=>{
+    const inp=document.getElementById(`code-input-${idx}`);
+    if(inp) inp.focus();
+  },100);
+};
 
 window.endAtBat=function(idx){
   const batter=activeGameSession.batters[idx];

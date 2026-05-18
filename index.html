@@ -122,7 +122,7 @@ input,select{font-family:var(--font-b)}
 /* TOPBAR */
 .topbar{
   position:sticky;top:0;z-index:200;
-  background:rgba(9,11,14,.92);backdrop-filter:blur(12px);
+  background:rgba(8,29,42,.95);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border);
   height:56px;display:flex;align-items:center;
   padding:0 24px;gap:16px;
@@ -1933,7 +1933,7 @@ function drawHeatmap(canvas, zoneCounts) {
   const W=logW, H=logH;
   const sx=W/300, sy=H/300;
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#0f2838'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#081d2a'; ctx.fillRect(0,0,W,H);
 
   const total=Object.values(zoneCounts).reduce((a,b)=>a+b,0);
   const maxC=Math.max(...Object.values(zoneCounts),1);
@@ -3025,6 +3025,8 @@ function drawPieChart(canvasId, legendId, data, title) {
   ctx.scale(dpr, dpr);
   const W = logW, H = logH;
   ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#133147';
+  ctx.fillRect(0,0,W,H);
 
   const entries = Object.entries(data).filter(([,v])=>v>0);
   const total = entries.reduce((s,[,v])=>s+v, 0);
@@ -3048,16 +3050,14 @@ function drawPieChart(canvasId, legendId, data, title) {
     ctx.closePath();
     ctx.fillStyle = getPitchColor(key) || '#888';
     ctx.fill();
-    ctx.strokeStyle = '#0f2838';
+    ctx.strokeStyle = '#133147';
     ctx.lineWidth = 2;
     ctx.stroke();
-
-    // label inside slice if big enough
     if (slice > 0.3) {
       const mid = angle + slice/2;
       const lx = cx + Math.cos(mid)*r*0.62;
       const ly = cy + Math.sin(mid)*r*0.62;
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
       ctx.font = "bold 11px 'DM Mono',monospace";
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(((val/total)*100).toFixed(0)+'%', lx, ly);
@@ -3090,6 +3090,8 @@ function drawStrikeDonut(canvasId, legendId, strikes, total) {
   ctx.scale(dpr, dpr);
   const W = logW, H = logH;
   ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#133147';
+  ctx.fillRect(0,0,W,H);
 
   if (!total) {
     ctx.fillStyle='rgba(122,130,153,.4)';
@@ -3108,17 +3110,17 @@ function drawStrikeDonut(canvasId, legendId, strikes, total) {
   ctx.beginPath(); ctx.moveTo(cx,cy);
   ctx.arc(cx,cy,ro,-Math.PI/2,-Math.PI/2+strikeAngle);
   ctx.closePath(); ctx.fillStyle='#4caf82'; ctx.fill();
-  ctx.strokeStyle='#0f2838'; ctx.lineWidth=2; ctx.stroke();
+  ctx.strokeStyle='#133147'; ctx.lineWidth=2; ctx.stroke();
 
   // Balls arc
   ctx.beginPath(); ctx.moveTo(cx,cy);
   ctx.arc(cx,cy,ro,-Math.PI/2+strikeAngle,-Math.PI/2);
   ctx.closePath(); ctx.fillStyle='#e05252'; ctx.fill();
-  ctx.strokeStyle='#0f2838'; ctx.lineWidth=2; ctx.stroke();
+  ctx.strokeStyle='#133147'; ctx.lineWidth=2; ctx.stroke();
 
   // Donut hole
   ctx.beginPath(); ctx.arc(cx,cy,ri,0,2*Math.PI);
-  ctx.fillStyle='#132135'; ctx.fill();
+  ctx.fillStyle='#133147'; ctx.fill();
 
   // Centre text
   const pct = ((strikes/total)*100).toFixed(0)+'%';
@@ -3139,11 +3141,11 @@ function drawStrikeDonut(canvasId, legendId, strikes, total) {
   }
 }
 
-function drawVeloBarChart(canvasId, veloByType) {
+function drawVeloBarChart(canvasId, veloByType, veloAfter50) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const dpr = window.devicePixelRatio || 1;
-  const logW = canvas.parentElement ? Math.min(canvas.parentElement.clientWidth - 32, 600) : 600;
+  const logW = canvas.parentElement ? canvas.parentElement.clientWidth - 32 : 800;
   const logH = 180;
   canvas.width  = Math.round(logW * dpr);
   canvas.height = Math.round(logH * dpr);
@@ -3153,7 +3155,7 @@ function drawVeloBarChart(canvasId, veloByType) {
   ctx.scale(dpr, dpr);
   const W = logW, H = logH;
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#132135'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#133147'; ctx.fillRect(0,0,W,H);
 
   const entries = Object.entries(veloByType).filter(([,v])=>v>0);
   if (!entries.length) {
@@ -3166,9 +3168,10 @@ function drawVeloBarChart(canvasId, veloByType) {
 
   const pad={l:40,r:16,t:16,b:36};
   const chartW=W-pad.l-pad.r, chartH=H-pad.t-pad.b;
-  const maxV=Math.max(...entries.map(([,v])=>v));
-  const absMin=Math.max(0, Math.min(...entries.map(([,v])=>v)) - 8);
-  const minV=absMin; // absolute baseline so lowest bar is still visible
+  const allV=[...entries.map(([,v])=>v), ...(veloAfter50?Object.values(veloAfter50):[])];
+  const maxV=Math.max(...allV);
+  const absMin=Math.max(0, Math.min(...allV) - 8);
+  const minV=absMin;
   const vRange=maxV-minV||10;
   const barW=chartW/entries.length*0.55;
   const gap=chartW/entries.length;
@@ -3185,33 +3188,65 @@ function drawVeloBarChart(canvasId, veloByType) {
     ctx.fillText(vLabel, pad.l-4, y);
   });
 
-  entries.forEach(([type,velo],i)=>{
-    const barH=((velo-minV)/vRange)*chartH;
-    const x=pad.l+gap*i+gap/2-barW/2;
-    const y=pad.t+chartH-barH;
-    const color=getPitchColor(type)||'#888';
+  // Check if any after-50 data exists
+  const hasAfter50 = veloAfter50 && Object.keys(veloAfter50).length > 0;
+  const effectiveBarW = hasAfter50 ? barW * 0.48 : barW;
 
-    // Bar gradient
-    const grad=ctx.createLinearGradient(x,y,x,y+barH);
-    grad.addColorStop(0,color);
-    grad.addColorStop(1,color+'55');
+  entries.forEach(([type,velo],i)=>{
+    const color=getPitchColor(type)||'#888';
+    const centerX = pad.l + gap*i + gap/2;
+
+    // Avg bar (left if after-50 exists, centre otherwise)
+    const ax = hasAfter50 ? centerX - effectiveBarW - 2 : centerX - effectiveBarW/2;
+    const barH=((velo-minV)/vRange)*chartH;
+    const ay=pad.t+chartH-barH;
+    const grad=ctx.createLinearGradient(ax,ay,ax,ay+barH);
+    grad.addColorStop(0,color); grad.addColorStop(1,color+'55');
     ctx.fillStyle=grad;
     ctx.beginPath();
-    if(ctx.roundRect) ctx.roundRect(x,y,barW,barH,4);
-    else ctx.rect(x,y,barW,barH);
+    if(ctx.roundRect) ctx.roundRect(ax,ay,effectiveBarW,barH,4);
+    else ctx.rect(ax,ay,effectiveBarW,barH);
     ctx.fill();
+    ctx.fillStyle='rgba(232,234,240,.9)';
+    ctx.font="bold 11px 'DM Mono',monospace";
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(velo.toFixed(1), ax+effectiveBarW/2, ay-3);
 
-    // Type label
+    // After-50 bar (right side, slightly faded)
+    if (hasAfter50 && veloAfter50[type]) {
+      const a50v = veloAfter50[type];
+      const bx = centerX + 2;
+      const a50H=((a50v-minV)/vRange)*chartH;
+      const a50Y=pad.t+chartH-a50H;
+      const grad2=ctx.createLinearGradient(bx,a50Y,bx,a50Y+a50H);
+      grad2.addColorStop(0,color+'bb'); grad2.addColorStop(1,color+'33');
+      ctx.fillStyle=grad2;
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle=color+'88'; ctx.lineWidth=1;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx,a50Y,effectiveBarW,a50H,4);
+      else ctx.rect(bx,a50Y,effectiveBarW,a50H);
+      ctx.fill(); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(232,234,240,.65)';
+      ctx.font="bold 10px 'DM Mono',monospace";
+      ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillText(a50v.toFixed(1), bx+effectiveBarW/2, a50Y-3);
+    }
+
+    // Type label below
     ctx.fillStyle='rgba(173,181,204,.8)';
     ctx.font="bold 11px 'DM Mono',monospace";
     ctx.textAlign='center'; ctx.textBaseline='top';
-    ctx.fillText(getPitchAbbr(type), x+barW/2, pad.t+chartH+6);
+    ctx.fillText(getPitchAbbr(type), centerX, pad.t+chartH+6);
 
-    // Velo label on bar
-    ctx.fillStyle='rgba(232,234,240,.9)';
-    ctx.font="bold 12px 'DM Mono',monospace";
-    ctx.textAlign='center'; ctx.textBaseline='bottom';
-    ctx.fillText(velo.toFixed(1), x+barW/2, y-3);
+    // Legend: solid=avg, dashed=after 50
+    if (hasAfter50 && i===0) {
+      ctx.fillStyle='rgba(173,181,204,.5)';
+      ctx.font="9px 'DM Mono',monospace";
+      ctx.textAlign='left'; ctx.textBaseline='top';
+      ctx.fillText('solid = avg  |  dashed = after 50', pad.l, 4);
+    }
   });
 }
 
@@ -3268,13 +3303,22 @@ function renderAllCharts(pitcher) {
     drawStrikeDonut('chart-fps-'+slot, 'legend-fps-'+slot, sk, forType.length);
   });
 
-  // Avg velo by pitch type
+  // Avg velo by pitch type + after-50 avg when available
   const veloByType = {};
+  const veloAfter50 = {};
   types.forEach(t=>{
     const arr = allRaw.map(x=>x.parsed).filter(p=>p.pitchType===t&&p.velo&&p.velo>0).map(p=>p.velo);
     if (arr.length) veloByType[t] = arr.reduce((a,b)=>a+b,0)/arr.length;
+    // After-50: average per game then average across games
+    const a50avgs = (pitcher.games||[]).map(g=>{
+      const _gm={}; Object.entries(getPitchSlots(pitcher,g)).forEach(([d,a])=>_gm[d]=a);
+      const gp=(g.batters||[]).flatMap(b=>(b.pitches||[]).map(p=>parseCode(p.code,b.handedness||p.hand,_gm))).filter(Boolean);
+      const a50=gp.slice(50).filter(p=>p.pitchType===t&&p.velo>0).map(p=>p.velo);
+      return a50.length?a50.reduce((a,b)=>a+b,0)/a50.length:null;
+    }).filter(v=>v!==null);
+    if (a50avgs.length) veloAfter50[t] = a50avgs.reduce((a,b)=>a+b,0)/a50avgs.length;
   });
-  drawVeloBarChart('chart-avg-velo', veloByType);
+  drawVeloBarChart('chart-avg-velo', veloByType, veloAfter50);
 }
 
 function rerenderGames() {
@@ -3881,7 +3925,7 @@ async function exportPPTX(pitcher) {
     const vctx=veloCanvas.getContext('2d');
     vctx.scale(scale4,scale4);
     const VW=900,VH=360;
-    vctx.fillStyle='#132135'; vctx.fillRect(0,0,VW,VH);
+    vctx.fillStyle='#0f2838'; vctx.fillRect(0,0,VW,VH);
     const vPad={l:60,r:20,t:30,b:50};
     const vChartW=VW-vPad.l-vPad.r, vChartH=VH-vPad.t-vPad.b;
     const vMaxV=Math.max(...vV);
@@ -4659,7 +4703,10 @@ function renderBatterList() {
       </div>
       <div class="batter-body">
         ${isDone?`
-        <button onclick="reopenAtBat(${idx})" style="margin-top:12px;width:100%;padding:9px;border-radius:var(--r);border:1px solid rgba(200,168,75,.4);background:rgba(200,168,75,.07);color:var(--gold);font-family:var(--font-m);font-size:11px;letter-spacing:1px;cursor:pointer">✎ Reopen At-Bat to Edit</button>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button onclick="reopenAtBat(${idx})" style="flex:1;padding:9px;border-radius:var(--r);border:1px solid rgba(200,168,75,.4);background:rgba(200,168,75,.07);color:var(--gold);font-family:var(--font-m);font-size:11px;letter-spacing:1px;cursor:pointer">✎ Reopen At-Bat to Edit</button>
+          <button onclick="duplicateBatter(${idx})" style="padding:9px 14px;border-radius:var(--r);border:1px solid rgba(91,141,238,.4);background:rgba(91,141,238,.07);color:var(--blue);font-family:var(--font-m);font-size:11px;letter-spacing:1px;cursor:pointer" title="Duplicate this at-bat">⧉ Dupe</button>
+        </div>
         `:`
         <div class="hand-toggle" style="margin-top:12px">
           <button class="hand-btn ${batter.handedness!=='L'?'active':''}" onclick="setHand(${idx},'R')">RHH</button>
@@ -4767,6 +4814,28 @@ window.addEventListener('beforeunload', (e) => {
     return msg;
   }
 });
+
+window.duplicateBatter = function(idx) {
+  const original = activeGameSession.batters[idx];
+  if (!original) return;
+  // Deep copy the batter — new at-bat, same sequence, marked as done
+  const dupe = JSON.parse(JSON.stringify(original));
+  // Recalculate counts from scratch so they're sequential in the new position
+  const startCount = dupe._startCount || '0-0';
+  let running = startCount;
+  dupe.pitches.forEach(p => {
+    p.count = running;
+    const parsed = parseCode(p.code, dupe.handedness || p.hand);
+    p.countAfter = nextCount(running, parsed ? parsed.isStrike : false);
+    running = p.countAfter;
+  });
+  dupe.done = true;
+  // Insert immediately after the source batter
+  activeGameSession.batters.splice(idx + 1, 0, dupe);
+  autoSaveSession();
+  renderBatterList();
+  toast('At-bat duplicated', 'ok');
+};
 
 window.endAtBat=function(idx){
   const batter=activeGameSession.batters[idx];

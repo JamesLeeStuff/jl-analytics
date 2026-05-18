@@ -5049,6 +5049,24 @@ function renderLiveStats() {
 }
 
 // Save game
+document.getElementById('delete-game-btn').addEventListener('click', () => {
+  if (!activeGameSession) return;
+  if (!confirm('Delete this game log? This cannot be undone.')) return;
+  const pitcher = DB.pitchers.find(p => p.id === activePitcherId);
+  if (!pitcher) return;
+  // Remove from pitcher.games
+  pitcher.games = (pitcher.games||[]).filter(g => g.id !== activeGameSession.id);
+  // Remove draft from Firebase
+  const draftsRef = fbDB.ref('drafts').child(activePitcherId);
+  draftsRef.remove().catch(()=>{});
+  savePitcher(pitcher);
+  activeGameSession = null;
+  document.getElementById('nav-log').style.display = 'none';
+  document.getElementById('code-key-bar').style.display = 'none';
+  openProfile(activePitcherId);
+  toast('Game deleted', 'ok');
+});
+
 document.getElementById('save-game-btn').addEventListener('click',()=>{
   if(!activePitcherId||!activeGameSession) return;
   if(!activeGameSession.batters.length||!activeGameSession.batters.some(b=>b.pitches.length)){

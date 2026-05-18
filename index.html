@@ -2586,6 +2586,8 @@ document.getElementById('edit-team-logo').addEventListener('input', function() {
     showTeamLogoPreview('');
   }
 });
+
+document.getElementById('cancel-edit-team').addEventListener('click', () => {
   document.getElementById('modal-edit-team').classList.remove('open');
   editingTeamId = null;
 });

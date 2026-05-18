@@ -949,8 +949,18 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
       <input type="text" id="edit-team-pin" class="code-input" style="letter-spacing:0;text-transform:none"/>
     </div>
     <div class="field">
-      <label>Logo URL (optional — paste any image URL)</label>
-      <input type="text" id="edit-team-logo" class="code-input" style="letter-spacing:0;text-transform:none" placeholder="https://..."/>
+      <label>Logo — Upload Image or Paste URL</label>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px dashed var(--border);border-radius:var(--r);cursor:pointer;color:var(--dim);font-family:var(--font-m);font-size:11px;background:var(--surf2);transition:border-color .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+          ↑ Upload PNG / JPG
+          <input type="file" id="edit-team-logo-file" accept="image/*" style="display:none" onchange="handleTeamLogoUpload(this)"/>
+        </label>
+      </div>
+      <input type="text" id="edit-team-logo" class="code-input" style="letter-spacing:0;text-transform:none" placeholder="Or paste image URL (https://...)"/>
+      <div id="edit-team-logo-preview" style="margin-top:8px;display:none">
+        <img id="edit-team-logo-img" style="max-height:80px;border-radius:6px;border:1px solid var(--border)"/>
+        <button onclick="clearTeamLogo()" style="margin-left:8px;padding:3px 10px;border-radius:4px;border:1px solid rgba(224,82,82,.4);background:transparent;color:var(--red);font-family:var(--font-m);font-size:10px;cursor:pointer">✕ Remove</button>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" id="cancel-edit-team">Cancel</button>
@@ -2511,6 +2521,8 @@ window.openEditTeamCoach = function(teamId) {
   document.getElementById('edit-team-name').value = team.name || '';
   document.getElementById('edit-team-pin').value = team.pin || '';
   document.getElementById('edit-team-logo').value = team.logo || '';
+  showTeamLogoPreview(team.logo || '');
+  document.getElementById('edit-team-logo-file').value = '';
   // Hide PIN field for coaches
   const pinField = document.getElementById('edit-team-pin').closest('.field');
   if (pinField) pinField.style.display = 'none';
@@ -2525,14 +2537,55 @@ window.openEditTeam = function(teamId) {
   document.getElementById('edit-team-name').value = team.name || '';
   document.getElementById('edit-team-pin').value = team.pin || '';
   document.getElementById('edit-team-logo').value = team.logo || '';
-  // Always show PIN field for full admins
+  showTeamLogoPreview(team.logo || '');
   const pinField2 = document.getElementById('edit-team-pin').closest('.field');
   if (pinField2) pinField2.style.display = '';
+  document.getElementById('edit-team-logo-file').value = '';
   document.getElementById('modal-edit-team').classList.add('open');
   setTimeout(() => document.getElementById('edit-team-name').focus(), 100);
 };
 
-document.getElementById('cancel-edit-team').addEventListener('click', () => {
+// Team logo upload helpers
+window.handleTeamLogoUpload = function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    document.getElementById('edit-team-logo').value = dataUrl;
+    showTeamLogoPreview(dataUrl);
+  };
+  reader.readAsDataURL(file);
+};
+
+function showTeamLogoPreview(src) {
+  const preview = document.getElementById('edit-team-logo-preview');
+  const img = document.getElementById('edit-team-logo-img');
+  if (src) {
+    img.src = src;
+    preview.style.display = 'flex';
+    preview.style.alignItems = 'center';
+  } else {
+    preview.style.display = 'none';
+    img.src = '';
+  }
+}
+
+window.clearTeamLogo = function() {
+  document.getElementById('edit-team-logo').value = '';
+  document.getElementById('edit-team-logo-file').value = '';
+  showTeamLogoPreview('');
+};
+
+// Update URL input to also show preview when typed
+document.getElementById('edit-team-logo').addEventListener('input', function() {
+  const val = this.value.trim();
+  if (val.startsWith('http') || val.startsWith('data:')) {
+    showTeamLogoPreview(val);
+  } else {
+    showTeamLogoPreview('');
+  }
+});
   document.getElementById('modal-edit-team').classList.remove('open');
   editingTeamId = null;
 });

@@ -284,6 +284,8 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
 .bar-fill.g{background:var(--green)}
 .bar-fill.r{background:var(--red)}
 
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* ── TEAM CARDS ────────────────────────────────────────────── */
 .team-card{
   background:var(--surf);border:1px solid var(--border);
@@ -632,6 +634,10 @@ canvas.heatmap{display:block;border-radius:6px;image-rendering:-webkit-optimize-
       </select>
     </div>
     <div class="pitcher-grid" id="teams-grid">
+      <div id="teams-loading" style="width:100%;padding:48px 0;text-align:center;color:var(--dim);font-family:var(--font-m);font-size:12px;letter-spacing:2px;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite"></div>
+        Loading Scouting Pages...
+      </div>
       <div class="empty-roster" id="empty-teams" style="display:none">No teams yet.</div>
     </div>
 
@@ -2181,11 +2187,14 @@ const TEAMS_REF = fbDB.ref('teams');
 let teamsDB = {}; // {teamId: teamObj}
 let teamsListener = false;
 
+let teamsLoaded = false; // true after first Firebase response
+
 function startTeamsListener() {
   if (teamsListener) return;
   teamsListener = true;
   TEAMS_REF.on('value', snap => {
     teamsDB = snap.val() || {};
+    teamsLoaded = true;
     const page = document.getElementById('page-teams');
     if (page && page.classList.contains('active')) {
       renderTeamsGrid();
@@ -2195,6 +2204,9 @@ function startTeamsListener() {
 
 // ── Show Teams Dashboard ──────────────────────────────────────
 function showTeamsDashboard() {
+  // Show loading state until data arrives
+  const loading = document.getElementById('teams-loading');
+  if (loading && Object.keys(teamsDB).length === 0) loading.style.display = '';
   startTeamsListener();
   showPage('page-teams');
   document.querySelector('.nav-btn[data-page="roster"]')?.classList.remove('active');
@@ -2224,7 +2236,10 @@ function showTeamsDashboard() {
 function renderTeamsGrid() {
   const grid = document.getElementById('teams-grid');
   const empty = document.getElementById('empty-teams');
-  [...grid.children].forEach(c => { if (c !== empty) c.remove(); });
+  const loading = document.getElementById('teams-loading');
+  // Hide loading spinner — data has arrived
+  if (loading) loading.style.display = 'none';
+  [...grid.children].forEach(c => { if (c !== empty && c !== loading) c.remove(); });
 
   const query = (document.getElementById('teams-search')?.value||'').toLowerCase();
   const sort = document.getElementById('teams-sort')?.value || 'alpha';
@@ -2248,9 +2263,14 @@ function renderTeamsGrid() {
   });
 
   const visible = teams.filter(t => isAdmin() || (!t.hidden && isTeamUnlocked(t)));
-  empty.style.display = visible.length ? 'none' : '';
-  if (!isAdmin() && !visible.length) {
-    empty.textContent = query ? 'No teams match your search.' : 'No teams added yet. Click "+ Add Team" to get started.';
+  // Only show empty state after Firebase has confirmed data — show spinner until then
+  if (!teamsLoaded) {
+    empty.style.display = 'none';
+  } else {
+    empty.style.display = visible.length ? 'none' : '';
+    if (!isAdmin() && !visible.length) {
+      empty.textContent = query ? 'No teams match your search.' : 'No teams added yet. Click "+ Add Team" to get started.';
+    }
   }
 
   teams.forEach(team => {

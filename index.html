@@ -8414,6 +8414,7 @@ function hsRenderBinderAbLog(allAbs) {
     row.querySelector('.binder-del-btn').onclick = () => hsBinderDeleteAb(ab);
 
     row.addEventListener('mouseenter', () => {
+      if (_hs._binderLock) return;
       _hs._binderHover = ab._abNum;
       document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r => {
         const match = r.dataset.abNum === String(ab._abNum);
@@ -8424,14 +8425,17 @@ function hsRenderBinderAbLog(allAbs) {
       hsDrawBinderLoc(_hs._binderAbs||[]);
     });
     row.addEventListener('mouseleave', () => {
-      _hs._binderHover = null;
-      document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r => {
-        r.style.background = parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent';
-        r.style.boxShadow = 'none';
-      });
-      hsDrawBinderSpray(_hs._binderAbs||[]);
-      hsDrawBinderLoc(_hs._binderAbs||[]);
+      if (!_hs._binderLock) {
+        _hs._binderHover = null;
+        document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r => {
+          r.style.background = parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent';
+          r.style.boxShadow = 'none';
+        });
+        hsDrawBinderSpray(_hs._binderAbs||[]);
+        hsDrawBinderLoc(_hs._binderAbs||[]);
+      }
     });
+    row.addEventListener('click', () => hsBinderSetLock(ab._abNum));
 
     return row;
   });
@@ -8479,9 +8483,51 @@ function hsRenderBinderCharts(abs, filterType) {
   });
 }
 
+
+// ── Binder lock/highlight helpers ────────────────────────
+let _hsBinder_docClick = null;
+function hsBinderClearLock() {
+  _hs._binderLock = null;
+  _hs._binderHover = null;
+  hsDrawBinderSpray(_hs._binderAbs||[]);
+  hsDrawBinderLoc(_hs._binderAbs||[]);
+  document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r=>{r.style.background=parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent';r.style.boxShadow='none';});
+  const l = document.getElementById('hs-binder-ab-log');
+  if (l) l.scrollTo({top:0, behavior:'smooth'});
+}
+
+function hsBinderSetLock(num) {
+  _hs._binderLock = (_hs._binderLock === num) ? null : num; // toggle
+  _hs._binderHover = _hs._binderLock;
+  hsDrawBinderSpray(_hs._binderAbs||[]);
+  hsDrawBinderLoc(_hs._binderAbs||[]);
+  const lockNum = _hs._binderLock;
+  document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r => {
+    const match = lockNum && r.dataset.abNum === String(lockNum);
+    r.style.background = match ? 'rgba(200,168,75,0.15)' : (parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent');
+    r.style.boxShadow = match ? 'inset 3px 0 0 var(--gold)' : 'none';
+  });
+  if (lockNum) {
+    const l = document.getElementById('hs-binder-ab-log');
+    const row = document.querySelector('#hs-binder-ab-log [data-ab-num="'+lockNum+'"]');
+    if (l && row) l.scrollTo({top: row.offsetTop, behavior:'smooth'});
+  } else {
+    const l = document.getElementById('hs-binder-ab-log');
+    if (l) l.scrollTo({top:0, behavior:'smooth'});
+  }
+}
+
 function hsBinderWireHover() {
   const sprayC = document.getElementById('hs-binder-spray');
   const locC = document.getElementById('hs-binder-loc');
+  // Click outside charts and log clears the lock
+  document.removeEventListener('click', _hsBinder_docClick);
+  _hsBinder_docClick = (e) => {
+    if (!_hs._binderLock) return;
+    const inside = e.target.closest('#hs-binder-spray,#hs-binder-loc,#hs-binder-ab-log');
+    if (!inside) hsBinderClearLock();
+  };
+  document.addEventListener('click', _hsBinder_docClick);
   if (!sprayC || !locC) return;
 
   function getHoveredAb(canvas, e, isSpray) {
@@ -8502,34 +8548,28 @@ function hsBinderWireHover() {
   }
 
   function onHover(canvas, e, isSpray) {
+    if (_hs._binderLock) { canvas.style.cursor = getHoveredAb(canvas,e,isSpray) ? 'pointer' : 'crosshair'; return; } // locked
     const ab = getHoveredAb(canvas, e, isSpray);
     const num = ab ? ab._abNum : null;
-    if (num === _hs._binderHover) return; // no change
+    if (num === _hs._binderHover) return;
     _hs._binderHover = num;
     canvas.style.cursor = ab ? 'pointer' : 'crosshair';
-    // Re-draw both charts with hover state
     hsDrawBinderSpray(_hs._binderAbs || []);
     hsDrawBinderLoc(_hs._binderAbs || []);
-    // Highlight log row
     document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(row => {
       const match = num && row.dataset.abNum === String(num);
-      row.style.background = match
-        ? 'rgba(200,168,75,0.15)'
-        : (parseInt(row.dataset.abNum)%2 ? 'rgba(255,255,255,.02)' : 'transparent');
+      row.style.background = match ? 'rgba(200,168,75,0.15)' : (parseInt(row.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent');
       row.style.boxShadow = match ? 'inset 3px 0 0 var(--gold)' : 'none';
-      if (match) {
-        const logEl = document.getElementById('hs-binder-ab-log');
-        if (logEl) {
-          logEl.scrollTo({top: row.offsetTop, behavior:'smooth'});
-        }
-      }
+      if (match) { const l=document.getElementById('hs-binder-ab-log'); if(l) l.scrollTo({top:row.offsetTop,behavior:'smooth'}); }
     });
   }
 
   sprayC.onmousemove = e => onHover(sprayC, e, true);
   locC.onmousemove = e => onHover(locC, e, false);
-  sprayC.onmouseleave = () => { _hs._binderHover = null; sprayC.style.cursor='crosshair'; hsDrawBinderSpray(_hs._binderAbs||[]); hsDrawBinderLoc(_hs._binderAbs||[]); document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r=>{r.style.background=parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent';r.style.boxShadow='none';}); const l=document.getElementById('hs-binder-ab-log'); if(l) l.scrollTo({top:0,behavior:'smooth'}); };
-  locC.onmouseleave = () => { _hs._binderHover = null; locC.style.cursor='crosshair'; hsDrawBinderSpray(_hs._binderAbs||[]); hsDrawBinderLoc(_hs._binderAbs||[]); document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r=>{r.style.background=parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent';r.style.boxShadow='none';}); const l=document.getElementById('hs-binder-ab-log'); if(l) l.scrollTo({top:0,behavior:'smooth'}); };
+  sprayC.onmouseleave = () => { if(!_hs._binderLock){ _hs._binderHover=null; sprayC.style.cursor='crosshair'; hsDrawBinderSpray(_hs._binderAbs||[]); hsDrawBinderLoc(_hs._binderAbs||[]); document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r=>{r.style.background=parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent';r.style.boxShadow='none';}); const l=document.getElementById('hs-binder-ab-log'); if(l) l.scrollTo({top:0,behavior:'smooth'}); }};
+  locC.onmouseleave = () => { if(!_hs._binderLock){ _hs._binderHover=null; locC.style.cursor='crosshair'; hsDrawBinderSpray(_hs._binderAbs||[]); hsDrawBinderLoc(_hs._binderAbs||[]); document.querySelectorAll('#hs-binder-ab-log [data-ab-num]').forEach(r=>{r.style.background=parseInt(r.dataset.abNum)%2?'rgba(255,255,255,.02)':'transparent';r.style.boxShadow='none';}); const l=document.getElementById('hs-binder-ab-log'); if(l) l.scrollTo({top:0,behavior:'smooth'}); }};
+  sprayC.onclick = e => { const ab=getHoveredAb(sprayC,e,true); if(ab) hsBinderSetLock(ab._abNum); else if(_hs._binderLock) hsBinderClearLock(); };
+  locC.onclick = e => { const ab=getHoveredAb(locC,e,false); if(ab) hsBinderSetLock(ab._abNum); else if(_hs._binderLock) hsBinderClearLock(); };
 }
 
 // ── SPRAY CHART (binder page) ─────────────────────────────

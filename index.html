@@ -159,7 +159,7 @@ kbd{display:inline-block;padding:2px 8px;border-radius:4px;background:var(--surf
 /* ══════════════════════════════════════════════════════════════
    ROSTER PAGE
 ══════════════════════════════════════════════════════════════ */
-.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
 .page-title{font-family:var(--font-d);font-size:36px;letter-spacing:2px}
 .btn-add{
   display:flex;align-items:center;gap:8px;
@@ -644,7 +644,7 @@ border-radius:var(--r);border:1px solid var(--border);background:var(--surf2);co
     </div>
     <!-- Teams grid (shown to everyone, filtered by access) -->
     <!-- Search + Sort bar -->
-    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+    <div id="roster-search-bar" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
       <input type="text" id="teams-search" placeholder="Search team..." style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:13px;outline:none;flex:1;min-width:180px" oninput="renderTeamsGrid()"/>
       <select id="teams-sort" onchange="renderTeamsGrid()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:12px;outline:none;cursor:pointer">
         <option value="alpha">A → Z</option>
@@ -672,17 +672,18 @@ border-radius:var(--r);border:1px solid var(--border);background:var(--surf2);co
     <div class="page-header">
       <h1 class="page-title" id="roster-page-title">PITCHER ROSTER</h1>
       <button class="btn-add" id="add-pitcher-btn" style="display:none">+ Add Pitcher</button>
+      <button class="btn-add" id="hs-add-team-btn" onclick="openHSAddTeamModal()" style="display:none">+ Add Team</button>
     </div>
     <!-- Pitchers / Hitting tab switcher -->
-    <div id="roster-mode-tabs" style="display:none;gap:4px;margin-bottom:20px;background:var(--surf2);border-radius:var(--r);padding:4px;width:fit-content">
+    <div id="roster-mode-tabs" style="display:none;gap:4px;margin-top:0;margin-bottom:20px;background:var(--surf2);border-radius:var(--r);padding:4px;width:fit-content">
       <button id="roster-tab-pitchers" onclick="switchRosterTab('pitchers')" style="padding:7px 18px;border-radius:calc(var(--r) - 2px);border:none;background:var(--gold);color:#000;font-family:var(--font-m);font-size:12px;cursor:pointer;font-weight:600;transition:all .2s">⚾ Pitchers</button>
       <button id="roster-tab-hitting" onclick="switchRosterTab('hitting')" style="padding:7px 18px;border-radius:calc(var(--r) - 2px);border:none;background:transparent;color:var(--mid);font-family:var(--font-m);font-size:12px;cursor:pointer;transition:all .2s">🏏 Hitting</button>
     </div>
     <!-- Search + Sort bar -->
-    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-      <input type="text" id="roster-search" placeholder="Search pitcher..." style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:13px;outline:none;flex:1;min-width:180px" oninput="renderRoster()"/>
+    <div id="pitcher-search-bar" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="roster-search" placeholder="Search pitcher..." oninput="renderRoster()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:13px;outline:none;flex:1;min-width:180px"/>
       <button id="source-trust-btn" onclick="openSourceTrustModal()" style="display:none;padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--mid);font-family:var(--font-m);font-size:12px;cursor:pointer;white-space:nowrap;transition:border-color .2s,color .2s">⚙ Sources</button>
-      <select id="roster-sort" onchange="renderRoster()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:12px;outline:none;cursor:pointer">
+      <select id="roster-sort" onchange="renderRoster()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:12px;outline:none;cursor:pointer;flex-shrink:0">
         <option value="alpha">A → Z</option>
         <option value="recent">Recently Edited</option>
         <option value="added">Date Added</option>
@@ -696,12 +697,14 @@ border-radius:var(--r);border:1px solid var(--border);background:var(--surf2);co
 
     <!-- ── HITTING SECTION (shown when Hitting tab active) ── -->
     <div id="hs-inline-section" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-        <div style="font-family:var(--font-m);font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase">Opposing Teams</div>
-        <button class="btn-add" id="hs-add-team-btn" onclick="openHSAddTeamModal()">+ Add Team</button>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
-        <input type="text" id="hs-team-search" placeholder="Search team..." oninput="hsFilterTeamsGrid()" style="flex:1;padding:10px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:13px;outline:none"/>
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="hs-team-search" placeholder="Search team..." oninput="hsFilterTeamsGrid()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:13px;outline:none;flex:1;min-width:180px"/>
+        <select id="hs-team-sort" onchange="hsRenderTeamsGrid()" style="padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font-m);font-size:12px;outline:none;cursor:pointer;flex-shrink:0">
+          <option value="alpha">A → Z</option>
+          <option value="recent">Recently Edited</option>
+          <option value="added">Date Added</option>
+          <option value="team">By Team</option>
+        </select>
       </div>
       <div class="pitcher-grid" id="hs-teams-grid"></div>
     </div>
@@ -1776,7 +1779,8 @@ border-radius:var(--r);border:1px solid var(--border);background:var(--surf2);co
         <div class="stat-block-title" style="margin-bottom:10px;margin-top:16px">Pitch Code Format</div>
         <div style="font-family:var(--font-m);font-size:11px;color:var(--dim);line-height:1.8">
           <span style="color:var(--gold);font-weight:600">[Pitch][Loc][Result][V1][V2]</span><br>
-          e.g. <span style="color:var(--text)">11S90</span> = Slot 1 · Upper Inside · Strike · 90mph
+          e.g. <span style="color:var(--text)">11S90</span> = Slot 1 · Upper Inside · Strike · 90mph<br>
+          <span style="color:var(--dim);font-size:10px">Velo accepts decimals: 90.1 or 901 both log as 90.1</span>
         </div>
       </div>
     </div>
@@ -2384,7 +2388,23 @@ function parseCode(raw, handedness='R', slotsOverride) {
   const c = raw.toLowerCase().trim();
   if (c.length < 5) return null;
   const p = c[0], loc = c[1], sb = c[2];
-  const velo = parseInt(c[3]+c[4], 10);
+  // Velo: chars 3-4 are required integer digits; char 5+ may be decimal (e.g. "905" = 90.5, or "90.5")
+  // Support formats: "11s90" (5 chars), "11s901" (6 chars = 90.1), "11s90.1" (7 chars)
+  let veloRaw = c.slice(3);
+  let velo;
+  if (veloRaw.includes('.')) {
+    // Explicit decimal: "90.1" or "90." → parse as float, "90." → 90
+    const f = parseFloat(veloRaw);
+    velo = isNaN(f) ? null : Math.round(f * 10) / 10;
+  } else if (veloRaw.length >= 3) {
+    // Implicit decimal: "901" → 90.1, "803" → 80.3
+    const intPart = parseInt(veloRaw.slice(0,2), 10);
+    const decPart = parseInt(veloRaw[2], 10);
+    velo = isNaN(intPart)||isNaN(decPart) ? parseInt(veloRaw.slice(0,2),10) : intPart + decPart/10;
+  } else {
+    velo = parseInt(veloRaw.slice(0,2), 10);
+    if (isNaN(velo)) velo = null;
+  }
   const _map = slotsOverride || PITCH_MAP;
   if (!_map[p]) return null;
   if (!['s','b','c'].includes(sb)) return null;
@@ -2421,7 +2441,7 @@ function parseCode(raw, handedness='R', slotsOverride) {
     pitchAbbr: getPitchAbbr(pitchAbbr),  // display abbr e.g. '4S' instead of 'FF'
     pitchName: getPitchName(pitchAbbr),
     loc, isStrike, isChase, isMidBall, plotAsStrike,
-    velo: isNaN(velo)?null:velo,
+    velo: (velo==null||isNaN(velo))?null:velo,
     zone, locLabel, sb,
     display: `${resultLabel} — ${locLabel}`,
     raw: raw.toUpperCase(),
@@ -2459,10 +2479,10 @@ function computeStats(pitches) {
   const strikes = pitches.filter(p => p.isStrike).length;
   const strikeP = total ? strikes/total : 0;
   const veloArr = pitches.map(p=>p.velo).filter(v=>v&&v>0);
-  const avgVelo = veloArr.length ? veloArr.reduce((a,b)=>a+b,0)/veloArr.length : 0;
+  const avgVelo = veloArr.length ? Math.round(veloArr.reduce((a,b)=>a+b,0)/veloArr.length * 10)/10 : 0;
   const maxVelo = veloArr.length ? Math.max(...veloArr) : 0;
   const velo50plus = veloArr.filter(v=>v>=50);
-  const avgVelo50 = velo50plus.length ? velo50plus.reduce((a,b)=>a+b,0)/velo50plus.length : 0;
+  const avgVelo50 = velo50plus.length ? Math.round(velo50plus.reduce((a,b)=>a+b,0)/velo50plus.length * 10)/10 : 0;
   const zoneCounts = {};
   ZONES.forEach(z=>zoneCounts[z]=0);
   pitches.forEach(p=>{ if(zoneCounts[p.zone]!==undefined) zoneCounts[p.zone]++; });
@@ -3044,7 +3064,7 @@ function loadTeam(teamId) {
   window._teamPitchersRef = teamPitchersRef;
 
   // Show roster page with team context
-  showPage('page-roster');
+  showPage('page-roster'); switchRosterTab('pitchers');
   document.querySelector('.nav-btn[data-page="roster"]')?.classList.add('active');
   renderRecentlyViewed();
 
@@ -3106,11 +3126,11 @@ function deletePitcherFromDB(pitcherId) {
 document.getElementById('profile-back').addEventListener('click', () => {
   if (_isAdminRosterMode) {
     // Back to admin merged roster
-    showPage('page-roster');
+    showPage('page-roster'); switchRosterTab('pitchers');
     renderMergedRoster();
   } else if (activeTeamId) {
     // Back to team scouting page roster
-    showPage('page-roster');
+    showPage('page-roster'); switchRosterTab('pitchers');
     renderRoster();
   } else {
     showTeamsDashboard();
@@ -3651,7 +3671,7 @@ function openAdminRoster() {
   activeTeamId = null;
   _isAdminRosterMode = true;
 
-  showPage('page-roster');
+  showPage('page-roster'); switchRosterTab('pitchers');
   document.getElementById('add-pitcher-btn').style.display = 'none';
   document.getElementById('roster-page-title').textContent = 'PITCHER ROSTER';
   const rl = document.getElementById('roster-loading');
@@ -3970,7 +3990,7 @@ function renderProfileStats(pitcher, filterType) {
       return gp.filter(p=>p.pitchType===t&&p.velo&&p.velo>0);
     });
     if(!allForType.length) return '';
-    const avgAll = allForType.reduce((s,p)=>s+p.velo,0)/allForType.length;
+    const avgAll = Math.round(allForType.reduce((s,p)=>s+p.velo,0)/allForType.length * 10)/10;
 
     // After-50 per game for this pitch type
     const after50avgs = (pitcher.games||[]).map(game=>{
@@ -4918,7 +4938,7 @@ document.getElementById('cancel-delete').addEventListener('click',()=>document.g
 document.getElementById('confirm-delete').addEventListener('click',()=>{
   deletePitcherFromDB(activePitcherId);
   document.getElementById('modal-delete').classList.remove('open');
-  showPage('page-roster');
+  showPage('page-roster'); switchRosterTab('pitchers');
   document.querySelector('.nav-btn[data-page="roster"]').classList.add('active');
   renderRoster();
   toast('Pitcher deleted');
@@ -7896,7 +7916,7 @@ function openAdminRoster() {
   activeTeamId = null;
   _isAdminRosterMode = true;
 
-  showPage('page-roster');
+  showPage('page-roster'); switchRosterTab('pitchers');
   document.getElementById('add-pitcher-btn').style.display = 'none';
   document.getElementById('roster-page-title').textContent = 'PITCHER ROSTER';
   const rl = document.getElementById('roster-loading');
@@ -8049,7 +8069,11 @@ function switchRosterTab(tab) {
     if (pitcherSection) pitcherSection.style.display = '';
     if (rosterSearch) rosterSearch.style.display = '';
     if (rosterSort) rosterSort.style.display = '';
+    const searchBarP = document.getElementById('pitcher-search-bar');
+    if (searchBarP) searchBarP.style.display = '';
     if (addBtn && activeTeamId) addBtn.style.display = '';
+    const hsAddBtn = document.getElementById('hs-add-team-btn');
+    if (hsAddBtn) hsAddBtn.style.display = 'none';
     if (hsSection) hsSection.style.display = 'none';
     if (rosterLoading) rosterLoading.style.display = 'none';
   } else {
@@ -8058,8 +8082,12 @@ function switchRosterTab(tab) {
     if (pitcherSection) pitcherSection.style.display = 'none';
     if (rosterSearch) rosterSearch.style.display = 'none';
     if (rosterSort) rosterSort.style.display = 'none';
+    const searchBar = document.getElementById('pitcher-search-bar');
+    if (searchBar) searchBar.style.display = 'none';
     if (addBtn) addBtn.style.display = 'none';
     if (sourceTrust) sourceTrust.style.display = 'none';
+    const hsAddBtn2 = document.getElementById('hs-add-team-btn');
+    if (hsAddBtn2 && _hs.teamId) hsAddBtn2.style.display = '';
     if (rosterLoading) rosterLoading.style.display = 'none';
     if (hsSection) hsSection.style.display = '';
     hsRenderTeamsGrid();
@@ -8083,7 +8111,16 @@ function hsRenderTeamsGrid() {
   grid.innerHTML = '<div style="color:var(--dim);font-family:var(--font-m);font-size:12px">Loading...</div>';
   hsRef().once('value', snap => {
     const teams = snap.val() || {};
-    const arr = Object.entries(teams).filter(([,t])=>t.name).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+    const sortVal = document.getElementById('hs-team-sort')?.value || 'alpha';
+    let arr = Object.entries(teams).filter(([,t])=>t.name);
+    if (sortVal === 'alpha') arr.sort((a,b)=>a[1].name.localeCompare(b[1].name));
+    else if (sortVal === 'recent') arr.sort((a,b)=>{
+      const aDate = Math.max(...Object.values(b[1].games||{}).map(g=>new Date(g.date||0).getTime()),0);
+      const bDate = Math.max(...Object.values(a[1].games||{}).map(g=>new Date(g.date||0).getTime()),0);
+      return aDate - bDate;
+    });
+    else if (sortVal === 'added') arr.reverse();
+    else if (sortVal === 'team') arr.sort((a,b)=>a[1].name.localeCompare(b[1].name));
     grid.innerHTML = '';
     if (!arr.length) { grid.innerHTML = '<div class="empty-roster">No teams scouted yet.</div>'; return; }
     // Re-apply search filter after render
